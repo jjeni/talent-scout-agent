@@ -137,7 +137,7 @@ export default function LaunchpadPage() {
     const urlList = useUrls ? urls.split("\n").map(u => u.trim()).filter(Boolean) : [];
     const activeFiles = files.filter(f => (useResumes && f.kind === "resume") || (useData && (f.kind === "csv" || f.kind === "json")));
 
-    const effectiveModel = provider === "gemini" ? "gemini-1.5-flash" : openrouterModel;
+    const effectiveModel = provider === "gemini" ? "gemini-2.5-flash-lite" : openrouterModel;
     try {
       if (activeFiles.length > 0) {
         await startPipelineWithFiles({ jobId, jdText: jd, files: activeFiles.map(e => e.file), candidateUrls: urlList, useDefaultDataset: useDefault, topN, wMatch: wMatch / 100, wInterest: (100 - wMatch) / 100, provider, model: effectiveModel });
@@ -627,7 +627,7 @@ export default function LaunchpadPage() {
             </button>
 
             <div style={{ textAlign: "center", fontSize: "11px", color: "var(--text-muted)", fontFamily: "'JetBrains Mono', monospace" }}>
-              Gemini 1.5 Flash · 4-stage pipeline · 60s avg
+              Gemini 2.5 Flash · 4-stage pipeline · 60s avg
             </div>
           </div>
         </div>

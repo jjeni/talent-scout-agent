@@ -13,7 +13,7 @@ _config_lock = asyncio.Lock()
 async def generate_content(
     prompt: str, 
     provider: str = "gemini", 
-    model_name: str = "gemini-1.5-flash",
+    model_name: str = "gemini-2.5-flash-lite",
     api_key: str = None,
     system_instruction: str = None,
     response_mime_type: str = "text/plain",

@@ -60,11 +60,16 @@ app = FastAPI(
     version="1.0.0",
 )
 
-CORS_ORIGINS = ["*"]
+CORS_ORIGINS = [
+    "http://localhost:3000",
+    "https://hr-scout-agent.vercel.app",
+    "https://hr-scout-agent.vercel.app/",
+    "*"
+]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=CORS_ORIGINS,
-    allow_credentials=False,  # Set to False to allow "*" wildcard or specific origins without cookie conflicts
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -83,7 +88,7 @@ W_INTEREST = float(os.getenv("INTEREST_WEIGHT", "0.4"))
 class JDParseRequest(BaseModel):
     jd_text: str
     provider: str = "gemini"
-    model: str = "gemini-1.5-flash"
+    model: str = "gemini-2.5-flash-lite"
 
 class PipelineRunRequest(BaseModel):
     jd_text: str
@@ -94,7 +99,7 @@ class PipelineRunRequest(BaseModel):
     w_interest: float = 0.4
     candidate_urls: Optional[list[str]] = None
     provider: str = "gemini"
-    model: str = "gemini-1.5-flash"
+    model: str = "gemini-2.5-flash-lite"
 
 
 # ─── Helper: SSE Emitter ─────────────────────────────────────────────────────
@@ -230,7 +235,7 @@ async def api_start_pipeline_with_files(
     files: list[UploadFile] = File(default=[]),
     user_key: Optional[str] = Header(None, alias="X-Gemini-API-Key"),
     provider: str = Form(default="gemini"),
-    model: str = Form(default="gemini-1.5-flash"),
+    model: str = Form(default="gemini-2.5-flash-lite"),
 ):
     """
     Combined multipart endpoint — upload resumes/CSV/JSON alongside JD text.
