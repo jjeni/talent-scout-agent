@@ -103,16 +103,23 @@ const getHeaders = (base: any = {}) => {
 };
 
 export async function parseJD(jdText: string, provider: string = "gemini", model: string = ""): Promise<JDParseResult> {
-  const res = await fetch(`${BACKEND_URL}/api/parse-jd`, {
-    method: "POST",
-    headers: getHeaders({ "Content-Type": "application/json" }),
-    body: JSON.stringify({ jd_text: jdText, provider, model }),
-  });
-  if (!res.ok) {
-    console.error("JD Parse Error:", res.status, res.statusText);
-    throw new Error(`JD parse failed: ${res.statusText}`);
+  const url = `${BACKEND_URL}/api/parse-jd`;
+  console.log(`[API] Fetching: ${url}`);
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: getHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify({ jd_text: jdText, provider, model }),
+    });
+    if (!res.ok) {
+      console.error(`[API] Parse Error: ${res.status} ${res.statusText}`);
+      throw new Error(`JD parse failed: ${res.statusText}`);
+    }
+    return res.json();
+  } catch (err: any) {
+    console.error(`[API] Fetch Failed for ${url}:`, err);
+    throw err;
   }
-  return res.json();
 }
 
 export async function startPipeline(params: {
