@@ -166,7 +166,7 @@ talent-scout/
 
 ---
 
-## ✅ Submission Checklist
+## ✅ Checklist
 
 - [x] Deployed prototype (see link above)
 - [x] Public source code repo with comprehensive README
