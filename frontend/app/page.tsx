@@ -2,10 +2,10 @@
 import { useRef, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { parseJD, startPipeline, startPipelineWithFiles } from "@/lib/api";
-import { 
-  Rocket, FileText, Download, Target, MessageSquare, Trophy, 
-  Eye, EyeOff, CheckCircle, Inbox, Paperclip, BarChart, ClipboardList, 
-  Folder, X, Link as LinkIcon, Settings, AlertTriangle, Check, Loader, BookOpen 
+import {
+  Rocket, FileText, Download, Target, MessageSquare, Trophy,
+  Eye, EyeOff, CheckCircle, Inbox, Paperclip, BarChart, ClipboardList,
+  Folder, X, Link as LinkIcon, Settings, AlertTriangle, Check, Loader, BookOpen
 } from "lucide-react";
 
 const SAMPLE_JD = `Senior Full-Stack Engineer — FinTech Startup (Series B)
@@ -25,13 +25,13 @@ cand_002,Bob Chen,"Python,FastAPI,Docker,Kubernetes",8,San Francisco CA,bob@emai
 cand_003,Priya Nair,"React,TypeScript,GraphQL,Node.js",5,Remote,priya@email.com,Bachelor's CS`;
 
 const CSV_COLS = [
-  { name: "id",               req: false, desc: "Auto-generated if blank" },
-  { name: "name",             req: true,  desc: "Full name" },
-  { name: "skills",           req: true,  desc: 'Comma-separated, quoted e.g. "React,Node.js"' },
-  { name: "experience_years", req: true,  desc: "Number e.g. 5 or 5.5" },
-  { name: "location",         req: false, desc: "City State or Remote" },
-  { name: "email",            req: false, desc: "Used for deduplication" },
-  { name: "education",        req: false, desc: "e.g. Bachelor's Computer Science" },
+  { name: "id", req: false, desc: "Auto-generated if blank" },
+  { name: "name", req: true, desc: "Full name" },
+  { name: "skills", req: true, desc: 'Comma-separated, quoted e.g. "React,Node.js"' },
+  { name: "experience_years", req: true, desc: "Number e.g. 5 or 5.5" },
+  { name: "location", req: false, desc: "City State or Remote" },
+  { name: "email", req: false, desc: "Used for deduplication" },
+  { name: "education", req: false, desc: "e.g. Bachelor's Computer Science" },
 ];
 
 type FileEntry = { file: File; kind: "resume" | "csv" | "json" };
@@ -47,19 +47,19 @@ const PIPELINE_STEPS = [
 export default function LaunchpadPage() {
   const router = useRouter();
   const resumeRef = useRef<HTMLInputElement>(null);
-  const csvRef    = useRef<HTMLInputElement>(null);
+  const csvRef = useRef<HTMLInputElement>(null);
 
-  const [jd, setJd]           = useState("");
-  const [urls, setUrls]       = useState("");
-  const [useDefault, setDef]  = useState(true);
+  const [jd, setJd] = useState("");
+  const [urls, setUrls] = useState("");
+  const [useDefault, setDef] = useState(true);
   const [useResumes, setUseResumes] = useState(false);
   const [useData, setUseData] = useState(false);
   const [useUrls, setUseUrls] = useState(false);
-  const [topN, setTopN]       = useState(10);
-  const [wMatch, setWMatch]   = useState(60);
-  const [files, setFiles]     = useState<FileEntry[]>([]);
+  const [topN, setTopN] = useState(10);
+  const [wMatch, setWMatch] = useState(60);
+  const [files, setFiles] = useState<FileEntry[]>([]);
   const [dragResume, setDragR] = useState(false);
-  const [dragCsv, setDragC]   = useState(false);
+  const [dragCsv, setDragC] = useState(false);
   const [showKey, setShowKey] = useState(false);
   const [provider, setProvider] = useState<"gemini" | "openrouter">("openrouter");
   const [openrouterModel, setOpenrouterModel] = useState("google/gemma-3-27b-it:free");
@@ -68,7 +68,7 @@ export default function LaunchpadPage() {
   const [useOwnKey, setUseOwnKey] = useState(false);
   const [showCsv, setShowCsv] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError]     = useState("");
+  const [error, setError] = useState("");
 
   useEffect(() => {
     const savedGemini = localStorage.getItem("GEMINI_API_KEY") || "";
@@ -76,7 +76,7 @@ export default function LaunchpadPage() {
     const savedORM = localStorage.getItem("OPENROUTER_MODEL") || "google/gemma-3-27b-it:free";
     const savedProvider = (localStorage.getItem("LLM_PROVIDER") as "gemini" | "openrouter") || "gemini";
     const savedUseOwn = localStorage.getItem("USE_OWN_KEY") === "true";
-    
+
     setGeminiKey(savedGemini);
     setOpenrouterKey(savedOR);
     setOpenrouterModel(savedORM);
@@ -130,14 +130,14 @@ export default function LaunchpadPage() {
   const total = (useDefault ? 1 : 0) + (useResumes ? 1 : 0) + (useData ? 1 : 0) + (useUrls ? 1 : 0);
 
   const handleLaunch = async () => {
-    if (!jd.trim())  { setError("Paste a job description first."); return; }
+    if (!jd.trim()) { setError("Paste a job description first."); return; }
     if (total === 0) { setError("Add at least one candidate source."); return; }
     setLoading(true); setError("");
     const jobId = `job_${Date.now()}`;
     const urlList = useUrls ? urls.split("\n").map(u => u.trim()).filter(Boolean) : [];
     const activeFiles = files.filter(f => (useResumes && f.kind === "resume") || (useData && (f.kind === "csv" || f.kind === "json")));
 
-    const effectiveModel = provider === "gemini" ? "gemini-2.5-flash-lite" : openrouterModel;
+    const effectiveModel = provider === "gemini" ? "gemini-1.5-flash" : openrouterModel;
     try {
       if (activeFiles.length > 0) {
         await startPipelineWithFiles({ jobId, jdText: jd, files: activeFiles.map(e => e.file), candidateUrls: urlList, useDefaultDataset: useDefault, topN, wMatch: wMatch / 100, wInterest: (100 - wMatch) / 100, provider, model: effectiveModel });
@@ -184,7 +184,7 @@ export default function LaunchpadPage() {
               ))}
             </div>
           </div>
-          
+
           <div style={{ marginTop: 8 }}>
             <button className="btn btn-outline" onClick={() => router.push("/guide")}>
               <BookOpen size={16} /> How to Use Dashboard
@@ -229,113 +229,113 @@ export default function LaunchpadPage() {
               <h2 style={{ fontSize: "0.9rem", fontWeight: 800, letterSpacing: "-0.01em", display: "flex", alignItems: "center", gap: 6 }}>
                 <Inbox size={16} /> Candidate Sources
               </h2>
-                        <div className="card" style={{ marginBottom: 20 }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-                <h3 className="card-title">LLM Configuration</h3>
-                {isKeyActive && (
-                  <span className="chip chip-green" style={{ textTransform: "uppercase", fontSize: 10, letterSpacing: "0.05em" }}>
-                    Active
-                  </span>
-                )}
-              </div>
-              
-              <div style={{ 
-                background: "rgba(80, 143, 248, 0.05)", 
-                border: "1px solid rgba(80, 143, 248, 0.2)", 
-                borderRadius: "var(--radius-sm)", 
-                padding: "8px 12px", 
-                marginBottom: 16,
-                fontSize: "0.75rem",
-                color: "var(--blue)",
-                display: "flex",
-                alignItems: "center",
-                gap: 8
-              }}>
-                <Loader size={14} className="spin" />
-                <span>Note: High-capacity free models may take longer to respond. We never store your API keys.</span>
-              </div>
-
-              <div className="toggle-segment" style={{ marginBottom: 16 }}>
-                <button
-                  onClick={() => handleToggleOwnKey(false)}
-                  className={`toggle-segment-btn ${!useOwnKey ? "active" : ""}`}
-                >
-                  DEFAULT KEY
-                </button>
-                <button
-                  onClick={() => handleToggleOwnKey(true)}
-                  className={`toggle-segment-btn ${useOwnKey ? "active" : ""}`}
-                >
-                  OWN KEY
-                </button>
-              </div>
-
-              <div className="toggle-segment" style={{ marginBottom: 16 }}>
-                <button
-                  onClick={() => handleSetProvider("gemini")}
-                  className={`toggle-segment-btn ${provider === "gemini" ? "active" : ""}`}
-                >
-                  GEMINI
-                </button>
-                <button
-                  onClick={() => handleSetProvider("openrouter")}
-                  className={`toggle-segment-btn ${provider === "openrouter" ? "active" : ""}`}
-                >
-                  OPENROUTER
-                </button>
-              </div>
-
-
-              {provider === "openrouter" && (
-                <div style={{ marginBottom: 16 }}>
-                  <label style={{ display: "block", fontSize: "10px", color: "var(--text-muted)", marginBottom: 6, fontWeight: 700 }}>FREE MODELS</label>
-                  <select
-                    value={openrouterModel}
-                    onChange={(e) => handleSetORModel(e.target.value)}
-                    style={{
-                      width: "100%", background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)",
-                      padding: "10px 12px", fontSize: "0.8rem", color: "var(--text)", cursor: "pointer"
-                    }}
-                  >
-                    <option value="google/gemma-3-27b-it:free">Gemma 3 27B (Fast / Accurate)</option>
-                    <option value="openai/gpt-oss-120b:free">GPT-OSS 120B (High Capacity)</option>
-                    <option value="mistralai/mistral-7b-instruct:free">Mistral 7B (Lightweight)</option>
-                  </select>
+              <div className="card" style={{ marginBottom: 20 }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+                  <h3 className="card-title">LLM Configuration</h3>
+                  {isKeyActive && (
+                    <span className="chip chip-green" style={{ textTransform: "uppercase", fontSize: 10, letterSpacing: "0.05em" }}>
+                      Active
+                    </span>
+                  )}
                 </div>
-              )}
 
-              {useOwnKey && (
-                <div style={{ position: "relative" }}>
-                  <input
-                    type={showKey ? "text" : "password"}
-                    placeholder={provider === "gemini" ? "Enter Gemini API Key..." : "Enter OpenRouter API Key..."}
-                    value={provider === "gemini" ? geminiKey : openrouterKey}
-                    onChange={(e) => provider === "gemini" ? handleSaveGemini(e.target.value) : handleSaveOR(e.target.value)}
-                    style={{
-                      width: "100%", background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)",
-                      padding: "12px 14px", fontSize: "0.85rem", color: "var(--text)", transition: "border 0.2s"
-                    }}
-                    onFocus={(e) => e.currentTarget.style.borderColor = "var(--blue)"}
-                    onBlur={(e) => e.currentTarget.style.borderColor = "var(--border)"}
-                  />
+                <div style={{
+                  background: "rgba(80, 143, 248, 0.05)",
+                  border: "1px solid rgba(80, 143, 248, 0.2)",
+                  borderRadius: "var(--radius-sm)",
+                  padding: "8px 12px",
+                  marginBottom: 16,
+                  fontSize: "0.75rem",
+                  color: "var(--blue)",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8
+                }}>
+                  <Loader size={14} className="spin" />
+                  <span>Note: High-capacity free models may take longer to respond. We never store your API keys.</span>
+                </div>
+
+                <div className="toggle-segment" style={{ marginBottom: 16 }}>
                   <button
-                    onClick={() => setShowKey(!showKey)}
-                    style={{
-                      position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)",
-                      background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer"
-                    }}
+                    onClick={() => handleToggleOwnKey(false)}
+                    className={`toggle-segment-btn ${!useOwnKey ? "active" : ""}`}
                   >
-                    {showKey ? <EyeOff size={16} /> : <Eye size={16} />}
+                    DEFAULT KEY
+                  </button>
+                  <button
+                    onClick={() => handleToggleOwnKey(true)}
+                    className={`toggle-segment-btn ${useOwnKey ? "active" : ""}`}
+                  >
+                    OWN KEY
                   </button>
                 </div>
-              )}
-              <p style={{ marginTop: 12, fontSize: "0.75rem", color: "var(--text-muted)", lineHeight: 1.5 }}>
-                {provider === "gemini" 
-                  ? "Standard high-speed analysis via Google Cloud." 
-                  : "Access free models like DeepSeek or Llama 3 via OpenRouter."}
-              </p>
+
+                <div className="toggle-segment" style={{ marginBottom: 16 }}>
+                  <button
+                    onClick={() => handleSetProvider("gemini")}
+                    className={`toggle-segment-btn ${provider === "gemini" ? "active" : ""}`}
+                  >
+                    GEMINI
+                  </button>
+                  <button
+                    onClick={() => handleSetProvider("openrouter")}
+                    className={`toggle-segment-btn ${provider === "openrouter" ? "active" : ""}`}
+                  >
+                    OPENROUTER
+                  </button>
+                </div>
+
+
+                {provider === "openrouter" && (
+                  <div style={{ marginBottom: 16 }}>
+                    <label style={{ display: "block", fontSize: "10px", color: "var(--text-muted)", marginBottom: 6, fontWeight: 700 }}>FREE MODELS</label>
+                    <select
+                      value={openrouterModel}
+                      onChange={(e) => handleSetORModel(e.target.value)}
+                      style={{
+                        width: "100%", background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)",
+                        padding: "10px 12px", fontSize: "0.8rem", color: "var(--text)", cursor: "pointer"
+                      }}
+                    >
+                      <option value="google/gemma-3-27b-it:free">Gemma 3 27B (Fast / Accurate)</option>
+                      <option value="openai/gpt-oss-120b:free">GPT-OSS 120B (High Capacity)</option>
+                      <option value="mistralai/mistral-7b-instruct:free">Mistral 7B (Lightweight)</option>
+                    </select>
+                  </div>
+                )}
+
+                {useOwnKey && (
+                  <div style={{ position: "relative" }}>
+                    <input
+                      type={showKey ? "text" : "password"}
+                      placeholder={provider === "gemini" ? "Enter Gemini API Key..." : "Enter OpenRouter API Key..."}
+                      value={provider === "gemini" ? geminiKey : openrouterKey}
+                      onChange={(e) => provider === "gemini" ? handleSaveGemini(e.target.value) : handleSaveOR(e.target.value)}
+                      style={{
+                        width: "100%", background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)",
+                        padding: "12px 14px", fontSize: "0.85rem", color: "var(--text)", transition: "border 0.2s"
+                      }}
+                      onFocus={(e) => e.currentTarget.style.borderColor = "var(--blue)"}
+                      onBlur={(e) => e.currentTarget.style.borderColor = "var(--border)"}
+                    />
+                    <button
+                      onClick={() => setShowKey(!showKey)}
+                      style={{
+                        position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)",
+                        background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer"
+                      }}
+                    >
+                      {showKey ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                )}
+                <p style={{ marginTop: 12, fontSize: "0.75rem", color: "var(--text-muted)", lineHeight: 1.5 }}>
+                  {provider === "gemini"
+                    ? "Standard high-speed analysis via Google Cloud."
+                    : "Access free models like DeepSeek or Llama 3 via OpenRouter."}
+                </p>
+              </div>
             </div>
- </div>
 
             <div style={{ background: "var(--surface)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border)", overflow: "hidden" }}>
               <label className="toggle-row" style={{ padding: "16px 20px" }}>
@@ -529,7 +529,7 @@ export default function LaunchpadPage() {
                     borderBottom: i < files.length - 1 ? "1px solid var(--border)" : "none",
                   }}>
                     <span style={{ color: "var(--text-muted)" }}>
-                      {e.kind === "csv" ? <BarChart size={14}/> : e.kind === "json" ? <ClipboardList size={14}/> : <FileText size={14}/>}
+                      {e.kind === "csv" ? <BarChart size={14} /> : e.kind === "json" ? <ClipboardList size={14} /> : <FileText size={14} />}
                     </span>
                     <span style={{ flex: 1, fontSize: "12px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "var(--text-secondary)" }}>
                       {e.file.name}
@@ -552,7 +552,7 @@ export default function LaunchpadPage() {
             {/* Settings */}
             <div className="card">
               <div className="card-title" style={{ marginBottom: 16 }}><Settings size={14} /> Pipeline Settings</div>
-              
+
               <div style={{ marginBottom: 20 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
                   <span style={{ fontSize: "0.875rem", fontWeight: 600, color: "var(--text-primary)" }}>Candidates for outreach</span>
@@ -568,7 +568,7 @@ export default function LaunchpadPage() {
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
                   <span style={{ fontSize: "0.875rem", fontWeight: 600, color: "var(--text-primary)" }}>Scoring Weights</span>
                   <strong style={{ fontFamily: "'JetBrains Mono', monospace", color: "var(--text-primary)" }}>{wMatch}% / {100 - wMatch}%</strong>
-             </div>
+                </div>
                 <div style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: 8, lineHeight: 1.4 }}>
                   Adjust the impact of technical skills matching versus AI conversational interest.
                 </div>
@@ -627,7 +627,7 @@ export default function LaunchpadPage() {
             </button>
 
             <div style={{ textAlign: "center", fontSize: "11px", color: "var(--text-muted)", fontFamily: "'JetBrains Mono', monospace" }}>
-              Gemini 2.5 Flash · 4-stage pipeline · 60s avg
+              Gemini 1.5 Flash · 4-stage pipeline · 60s avg
             </div>
           </div>
         </div>
