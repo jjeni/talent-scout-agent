@@ -67,8 +67,6 @@ export default function LaunchpadPage() {
   const [openrouterKey, setOpenrouterKey] = useState("");
   const [useOwnKey, setUseOwnKey] = useState(false);
   const [showCsv, setShowCsv] = useState(false);
-  const [preview, setPreview] = useState<any>(null);
-  const [parsing, setParsing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState("");
 
@@ -128,17 +126,6 @@ export default function LaunchpadPage() {
     });
   };
 
-  const handlePreview = async () => {
-    if (!jd.trim()) return;
-    setParsing(true); setError("");
-    const effectiveModel = provider === "gemini" ? "gemini-2.5-flash-lite" : openrouterModel;
-    try { 
-      const res = await parseJD(jd, provider, effectiveModel);
-      setPreview(res); 
-    }
-    catch (e: any) { setError(e.message); }
-    finally { setParsing(false); }
-  };
 
   const total = (useDefault ? 1 : 0) + (useResumes ? 1 : 0) + (useData ? 1 : 0) + (useUrls ? 1 : 0);
 
@@ -157,7 +144,7 @@ export default function LaunchpadPage() {
       } else {
         await startPipeline({ jobId, jdText: jd, candidateUrls: urlList, useDefaultDataset: useDefault, topN, wMatch: wMatch / 100, wInterest: (100 - wMatch) / 100, provider, model: effectiveModel });
       }
-      router.push(`/pipeline?jobId=${jobId}&role=${encodeURIComponent(preview?.role_title || "Role")}`);
+      router.push(`/pipeline?jobId=${jobId}&role=Scouting%20Session`);
     } catch (e: any) { setError(e.message || "Failed to start"); setLoading(false); }
   };
 
@@ -232,54 +219,9 @@ export default function LaunchpadPage() {
                 <span style={{ fontSize: "11px", color: "var(--text-muted)", fontFamily: "'JetBrains Mono', monospace" }}>
                   {jd.length.toLocaleString()} chars
                 </span>
-                <button
-                  className="btn btn-outline btn-sm"
-                  onClick={handlePreview}
-                  disabled={!jd.trim() || parsing}
-                >
-                  {parsing ? <><Loader size={14} className="spin" /> Parsing...</> : <><Eye size={14} /> Preview Parse</>}
-                </button>
               </div>
             </div>
 
-            {preview && (
-              <div className="card fade-in-up" style={{ borderColor: "var(--blue)", borderLeftWidth: 4 }}>
-                <div className="card-title" style={{ color: "var(--blue)" }}>
-                  <CheckCircle size={14} /> PARSED — {preview.role_title}
-                </div>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 14 }}>
-                  {preview.required_skills?.slice(0, 10).map((s: any) => (
-                    <span key={s.skill} className="chip chip-blue">{s.skill}</span>
-                  ))}
-                </div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 8 }}>
-                  {preview.seniority && (
-                    <div style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)", padding: "12px 14px" }}>
-                      <div style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "'JetBrains Mono', monospace", marginBottom: 4 }}>SENIORITY</div>
-                      <div style={{ fontSize: "0.875rem", fontWeight: 700 }}>{preview.seniority}</div>
-                    </div>
-                  )}
-                  {preview.experience?.min_years && (
-                    <div style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)", padding: "12px 14px" }}>
-                      <div style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "'JetBrains Mono', monospace", marginBottom: 4 }}>MIN EXP</div>
-                      <div style={{ fontSize: "0.875rem", fontWeight: 700 }}>{preview.experience.min_years}+ yrs</div>
-                    </div>
-                  )}
-                  {preview.location?.type && (
-                    <div style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)", padding: "12px 14px" }}>
-                      <div style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "'JetBrains Mono', monospace", marginBottom: 4 }}>LOCATION</div>
-                      <div style={{ fontSize: "0.875rem", fontWeight: 700 }}>{preview.location.type}</div>
-                    </div>
-                  )}
-                  {preview.compensation?.max && (
-                    <div style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)", padding: "12px 14px" }}>
-                      <div style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "'JetBrains Mono', monospace", marginBottom: 4 }}>COMP MAX</div>
-                      <div style={{ fontSize: "0.875rem", fontWeight: 700 }}>${(preview.compensation.max / 1000).toFixed(0)}k</div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
