@@ -109,6 +109,10 @@ export default function Sidebar() {
             <span className="status-dot" />
             Gemini 2.5 Flash · Online
           </div>
+          <div style={{ marginTop: 12, fontSize: "10px", color: "var(--amber)", fontWeight: 500, display: "flex", alignItems: "center", gap: 4 }}>
+            <span style={{ width: 4, height: 4, borderRadius: "50%", background: "var(--amber)" }} />
+            Privacy First: Keys are never stored
+          </div>
           <div style={{ marginTop: 6, fontFamily: "'JetBrains Mono', monospace", fontSize: "10px", color: "var(--text-muted)" }}>
             Catalyst Hackathon 2026
           </div>

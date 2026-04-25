@@ -8,7 +8,7 @@ import google.generativeai as genai
 from dotenv import load_dotenv
 
 from models.jd_schema import JDSchema
-from utils.gemini_utils import get_model
+from utils.llm_utils import generate_content
 
 # EMERGENCY QUOTA ADJUSTMENT: Using Flash Lite
 MODEL_NAME = "gemini-2.5-flash-lite"
@@ -53,14 +53,8 @@ Do NOT include any markdown or explanation — only the JSON object.
 """
 
 
-async def parse_jd(jd_text: str, api_key: str = None) -> JDSchema:
-    """Uses Gemini to extract structured fields from JD text."""
-    model = await get_model(
-        model_name=MODEL_NAME,
-        api_key=api_key,
-        generation_config={"response_mime_type": "application/json", "temperature": 0.1}
-    )
-
+async def parse_jd(jd_text: str, api_key: str = None, provider: str = "gemini", model: str = None) -> JDSchema:
+    """Uses LLM to extract structured fields from JD text."""
     if not jd_text or len(jd_text.strip()) < 20:
         raise ValueError("Job description text is too short or empty.")
 
@@ -68,9 +62,15 @@ async def parse_jd(jd_text: str, api_key: str = None) -> JDSchema:
 
     await asyncio.sleep(2.0) # Rate limit check
     try:
-        # 5. Call Gemini
-        response = await model.generate_content_async(prompt)
-        raw_json = response.text.strip()
+        # 5. Call LLM
+        raw_json = await generate_content(
+            prompt=prompt,
+            provider=provider,
+            model_name=model or MODEL_NAME,
+            api_key=api_key,
+            response_mime_type="application/json",
+            temperature=0.1
+        )
 
         # Strip markdown code fences if present
         if raw_json.startswith("```"):

@@ -6,7 +6,7 @@ import os
 from dotenv import load_dotenv
 
 from models.output_schema import ConversationTranscript, InterestBreakdown
-from utils.gemini_utils import get_model
+from utils.llm_utils import generate_content
 
 load_dotenv()
 logger = logging.getLogger(__name__)
@@ -78,19 +78,10 @@ def _format_transcript(transcript: ConversationTranscript) -> str:
     return "\n".join(lines)
 
 
-async def score_interest(transcript: ConversationTranscript, api_key: str = None) -> InterestBreakdown:
-    """
-    Analyze a conversation transcript and return an InterestBreakdown with sub-scores.
-    Falls back to neutral scores if LLM fails.
-    """
+async def score_interest(transcript: ConversationTranscript, api_key: str = None, provider: str = "gemini", model: str = None) -> InterestBreakdown:
+    """Analyzes a conversation transcript to produce structured interest scores."""
     if not transcript.turns:
         return _fallback_breakdown("Empty transcript — no conversation data")
-
-    model = await get_model(
-        model_name=MODEL_NAME,
-        api_key=api_key,
-        generation_config={"response_mime_type": "application/json", "temperature": 0.1}
-    )
 
     formatted = _format_transcript(transcript)
     prompt = f"{INTEREST_SCORING_PROMPT}\n\n--- CONVERSATION TRANSCRIPT ---\n{formatted}\n--- END ---"
@@ -99,8 +90,14 @@ async def score_interest(transcript: ConversationTranscript, api_key: str = None
     await asyncio.sleep(6.0)
 
     try:
-        response = await model.generate_content_async(prompt)
-        raw = response.text.strip()
+        raw = await generate_content(
+            prompt=prompt,
+            provider=provider,
+            model_name=model or MODEL_NAME,
+            api_key=api_key,
+            response_mime_type="application/json",
+            temperature=0.1
+        )
 
         # Strip markdown fences if present
         if raw.startswith("```"):

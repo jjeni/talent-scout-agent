@@ -1,10 +1,10 @@
 "use client";
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { parseJD, startPipeline, startPipelineWithFiles } from "@/lib/api";
 import { 
   Rocket, FileText, Download, Target, MessageSquare, Trophy, 
-  Eye, CheckCircle, Inbox, Paperclip, BarChart, ClipboardList, 
+  Eye, EyeOff, CheckCircle, Inbox, Paperclip, BarChart, ClipboardList, 
   Folder, X, Link as LinkIcon, Settings, AlertTriangle, Check, Loader, BookOpen 
 } from "lucide-react";
 
@@ -60,16 +60,59 @@ export default function LaunchpadPage() {
   const [files, setFiles]     = useState<FileEntry[]>([]);
   const [dragResume, setDragR] = useState(false);
   const [dragCsv, setDragC]   = useState(false);
+  const [showKey, setShowKey] = useState(false);
+  const [provider, setProvider] = useState<"gemini" | "openrouter">("openrouter");
+  const [openrouterModel, setOpenrouterModel] = useState("google/gemma-3-27b-it:free");
+  const [geminiKey, setGeminiKey] = useState("");
+  const [openrouterKey, setOpenrouterKey] = useState("");
+  const [useOwnKey, setUseOwnKey] = useState(false);
   const [showCsv, setShowCsv] = useState(false);
   const [preview, setPreview] = useState<any>(null);
   const [parsing, setParsing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState("");
-  const [userApiKey, setUserApiKey] = useState(() => {
-    if (typeof window !== "undefined") return localStorage.getItem("TALENT_SCOUT_API_KEY") || "";
-    return "";
-  });
-  const [showApiKey, setShowApiKey] = useState(false);
+
+  useEffect(() => {
+    const savedGemini = localStorage.getItem("GEMINI_API_KEY") || "";
+    const savedOR = localStorage.getItem("OPENROUTER_API_KEY") || "";
+    const savedORM = localStorage.getItem("OPENROUTER_MODEL") || "google/gemma-3-27b-it:free";
+    const savedProvider = (localStorage.getItem("LLM_PROVIDER") as "gemini" | "openrouter") || "gemini";
+    const savedUseOwn = localStorage.getItem("USE_OWN_KEY") === "true";
+    
+    setGeminiKey(savedGemini);
+    setOpenrouterKey(savedOR);
+    setOpenrouterModel(savedORM);
+    setProvider(savedProvider);
+    setUseOwnKey(savedUseOwn);
+  }, []);
+
+  const handleToggleOwnKey = (val: boolean) => {
+    setUseOwnKey(val);
+    localStorage.setItem("USE_OWN_KEY", val.toString());
+  };
+
+  const handleSaveGemini = (key: string) => {
+    setGeminiKey(key);
+    localStorage.setItem("GEMINI_API_KEY", key);
+  };
+
+  const handleSaveOR = (key: string) => {
+    setOpenrouterKey(key);
+    localStorage.setItem("OPENROUTER_API_KEY", key);
+  };
+
+  const handleSetProvider = (p: "gemini" | "openrouter") => {
+    setProvider(p);
+    localStorage.setItem("LLM_PROVIDER", p);
+  };
+
+  const handleSetORModel = (m: string) => {
+    setOpenrouterModel(m);
+    localStorage.setItem("OPENROUTER_MODEL", m);
+  };
+
+  const currentKey = provider === "gemini" ? geminiKey : openrouterKey;
+  const isKeyActive = currentKey.length > 20;
 
   const addFiles = (list: FileList | null, zone: "resume" | "csv") => {
     if (!list) return;
@@ -88,7 +131,11 @@ export default function LaunchpadPage() {
   const handlePreview = async () => {
     if (!jd.trim()) return;
     setParsing(true); setError("");
-    try { setPreview(await parseJD(jd)); }
+    const effectiveModel = provider === "gemini" ? "gemini-2.5-flash-lite" : openrouterModel;
+    try { 
+      const res = await parseJD(jd, provider, effectiveModel);
+      setPreview(res); 
+    }
     catch (e: any) { setError(e.message); }
     finally { setParsing(false); }
   };
@@ -103,11 +150,12 @@ export default function LaunchpadPage() {
     const urlList = useUrls ? urls.split("\n").map(u => u.trim()).filter(Boolean) : [];
     const activeFiles = files.filter(f => (useResumes && f.kind === "resume") || (useData && (f.kind === "csv" || f.kind === "json")));
 
+    const effectiveModel = provider === "gemini" ? "gemini-2.5-flash-lite" : openrouterModel;
     try {
       if (activeFiles.length > 0) {
-        await startPipelineWithFiles({ jobId, jdText: jd, files: activeFiles.map(e => e.file), candidateUrls: urlList, useDefaultDataset: useDefault, topN, wMatch: wMatch / 100, wInterest: (100 - wMatch) / 100 });
+        await startPipelineWithFiles({ jobId, jdText: jd, files: activeFiles.map(e => e.file), candidateUrls: urlList, useDefaultDataset: useDefault, topN, wMatch: wMatch / 100, wInterest: (100 - wMatch) / 100, provider, model: effectiveModel });
       } else {
-        await startPipeline({ jobId, jdText: jd, candidateUrls: urlList, useDefaultDataset: useDefault, topN, wMatch: wMatch / 100, wInterest: (100 - wMatch) / 100 });
+        await startPipeline({ jobId, jdText: jd, candidateUrls: urlList, useDefaultDataset: useDefault, topN, wMatch: wMatch / 100, wInterest: (100 - wMatch) / 100, provider, model: effectiveModel });
       }
       router.push(`/pipeline?jobId=${jobId}&role=${encodeURIComponent(preview?.role_title || "Role")}`);
     } catch (e: any) { setError(e.message || "Failed to start"); setLoading(false); }
@@ -115,7 +163,6 @@ export default function LaunchpadPage() {
 
   return (
     <>
-      {/* Top bar */}
       <div className="topbar">
         <span><Rocket size={18} className="text-blue" /></span>
         <span className="topbar-title">Launchpad</span>
@@ -128,7 +175,6 @@ export default function LaunchpadPage() {
       </div>
 
       <div className="page">
-        {/* Hero */}
         <div style={{ marginBottom: 32, paddingBottom: 24, borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 20 }}>
           <div>
             <h1 style={{ fontSize: "clamp(1.6rem, 4vw, 2.2rem)", fontWeight: 800, letterSpacing: "-0.03em", lineHeight: 1.15, marginBottom: 12 }}>
@@ -138,7 +184,6 @@ export default function LaunchpadPage() {
             <p style={{ color: "var(--text-muted)", fontSize: "0.95rem", maxWidth: 540 }}>
               Paste a JD, add candidate sources, and watch the 4-stage Gemini pipeline match, converse, and rank candidates in minutes.
             </p>
-            {/* Pipeline steps */}
             <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 4, marginTop: 20 }}>
               {PIPELINE_STEPS.map((step, i, arr) => (
                 <div key={step.label} style={{ display: "flex", alignItems: "center", gap: 4 }}>
@@ -160,12 +205,8 @@ export default function LaunchpadPage() {
           </div>
         </div>
 
-        {/* Main grid */}
         <div className="grid-2col">
-
-          {/* ── LEFT: Job Description ── */}
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-
             <div className="card">
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
                 <div>
@@ -176,7 +217,7 @@ export default function LaunchpadPage() {
                     Gemini will automatically parse required skills, seniority, and metadata to calibrate candidate searches.
                   </div>
                 </div>
-                <button className="btn btn-ghost btn-sm" onClick={() => setJd(SAMPLE_JD)}>
+                <button className="btn btn-ghost btn-sm demo-yellow-btn" onClick={() => setJd(SAMPLE_JD)}>
                   Use sample JD
                 </button>
               </div>
@@ -201,19 +242,16 @@ export default function LaunchpadPage() {
               </div>
             </div>
 
-            {/* JD Preview */}
             {preview && (
               <div className="card fade-in-up" style={{ borderColor: "var(--blue)", borderLeftWidth: 4 }}>
                 <div className="card-title" style={{ color: "var(--blue)" }}>
                   <CheckCircle size={14} /> PARSED — {preview.role_title}
                 </div>
-                {/* Skills */}
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 14 }}>
                   {preview.required_skills?.slice(0, 10).map((s: any) => (
                     <span key={s.skill} className="chip chip-blue">{s.skill}</span>
                   ))}
                 </div>
-                {/* Metadata grid */}
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 8 }}>
                   {preview.seniority && (
                     <div style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)", padding: "12px 14px" }}>
@@ -244,23 +282,151 @@ export default function LaunchpadPage() {
             )}
           </div>
 
-          {/* ── RIGHT: Sources + Settings ── */}
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-
-            {/* Section label */}
             <div style={{ borderBottom: "2px solid var(--border)", paddingBottom: 10 }}>
               <h2 style={{ fontSize: "0.9rem", fontWeight: 800, letterSpacing: "-0.01em", display: "flex", alignItems: "center", gap: 6 }}>
                 <Inbox size={16} /> Candidate Sources
               </h2>
-            </div>
+                        <div className="card" style={{ marginBottom: 20 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+                <h3 className="card-title">LLM Configuration</h3>
+                {isKeyActive && (
+                  <span className="chip chip-green" style={{ textTransform: "uppercase", fontSize: 10, letterSpacing: "0.05em" }}>
+                    Active
+                  </span>
+                )}
+              </div>
+              
+              <div style={{ 
+                background: "rgba(59, 130, 246, 0.1)", 
+                border: "1px solid rgba(59, 130, 246, 0.2)", 
+                borderRadius: "var(--radius-sm)", 
+                padding: "8px 12px", 
+                marginBottom: 16,
+                fontSize: "0.75rem",
+                color: "var(--blue)",
+                display: "flex",
+                alignItems: "center",
+                gap: 8
+              }}>
+                <Loader size={14} className="spin" />
+                <span>Note: High-capacity free models may take longer to respond. We never store your API keys.</span>
+              </div>
 
-            {/* Built-in dataset */}
+              <div style={{ display: "flex", gap: 8, background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", padding: 4, marginBottom: 16 }}>
+                <button
+                  onClick={() => handleToggleOwnKey(false)}
+                  style={{
+                    flex: 1, padding: "8px 0", fontSize: "0.75rem", fontWeight: 700, borderRadius: "var(--radius-sm)", transition: "all 0.2s",
+                    border: "none", cursor: "pointer",
+                    background: !useOwnKey ? "var(--bg-card)" : "transparent",
+                    color: !useOwnKey ? "var(--text)" : "var(--text-muted)",
+                    boxShadow: !useOwnKey ? "0 4px 12px rgba(0,0,0,0.2)" : "none"
+                  }}
+                >
+                  DEFAULT KEY
+                </button>
+                <button
+                  onClick={() => handleToggleOwnKey(true)}
+                  style={{
+                    flex: 1, padding: "8px 0", fontSize: "0.75rem", fontWeight: 700, borderRadius: "var(--radius-sm)", transition: "all 0.2s",
+                    border: "none", cursor: "pointer",
+                    background: useOwnKey ? "var(--bg-card)" : "transparent",
+                    color: useOwnKey ? "var(--text)" : "var(--text-muted)",
+                    boxShadow: useOwnKey ? "0 4px 12px rgba(0,0,0,0.2)" : "none"
+                  }}
+                >
+                  OWN KEY
+                </button>
+              </div>
+
+              <div style={{ display: "flex", gap: 8, background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", padding: 4, marginBottom: 16 }}>
+                <button
+                  onClick={() => handleSetProvider("gemini")}
+                  style={{
+                    flex: 1, padding: "8px 0", fontSize: "0.75rem", fontWeight: 700, borderRadius: "var(--radius-sm)", transition: "all 0.2s",
+                    border: "none", cursor: "pointer",
+                    background: provider === "gemini" ? "var(--bg-card)" : "transparent",
+                    color: provider === "gemini" ? "var(--text)" : "var(--text-muted)",
+                    boxShadow: provider === "gemini" ? "0 4px 12px rgba(0,0,0,0.2)" : "none"
+                  }}
+                >
+                  GEMINI
+                </button>
+                <button
+                  onClick={() => handleSetProvider("openrouter")}
+                  style={{
+                    flex: 1, padding: "8px 0", fontSize: "0.75rem", fontWeight: 700, borderRadius: "var(--radius-sm)", transition: "all 0.2s",
+                    border: "none", cursor: "pointer",
+                    background: provider === "openrouter" ? "var(--bg-card)" : "transparent",
+                    color: provider === "openrouter" ? "var(--text)" : "var(--text-muted)",
+                    boxShadow: provider === "openrouter" ? "0 4px 12px rgba(0,0,0,0.2)" : "none"
+                  }}
+                >
+                  OPENROUTER
+                </button>
+              </div>
+
+              {provider === "openrouter" && (
+                <div style={{ marginBottom: 16 }}>
+                  <label style={{ display: "block", fontSize: "10px", color: "var(--text-muted)", marginBottom: 6, fontWeight: 700 }}>FREE MODELS</label>
+                  <select
+                    value={openrouterModel}
+                    onChange={(e) => handleSetORModel(e.target.value)}
+                    style={{
+                      width: "100%", background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)",
+                      padding: "10px 12px", fontSize: "0.8rem", color: "var(--text)", cursor: "pointer"
+                    }}
+                  >
+                    <option value="google/gemma-3-27b-it:free">Gemma 3 27B (Fast / Accurate)</option>
+                    <option value="openai/gpt-oss-120b:free">GPT-OSS 120B (High Capacity)</option>
+                    <option value="mistralai/mistral-7b-instruct:free">Mistral 7B (Lightweight)</option>
+                  </select>
+                </div>
+              )}
+
+              {useOwnKey && (
+                <div style={{ position: "relative" }}>
+                  <input
+                    type={showKey ? "text" : "password"}
+                    placeholder={provider === "gemini" ? "Enter Gemini API Key..." : "Enter OpenRouter API Key..."}
+                    value={provider === "gemini" ? geminiKey : openrouterKey}
+                    onChange={(e) => provider === "gemini" ? handleSaveGemini(e.target.value) : handleSaveOR(e.target.value)}
+                    style={{
+                      width: "100%", background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)",
+                      padding: "12px 14px", fontSize: "0.85rem", color: "var(--text)", transition: "border 0.2s"
+                    }}
+                    onFocus={(e) => e.currentTarget.style.borderColor = "var(--blue)"}
+                    onBlur={(e) => e.currentTarget.style.borderColor = "var(--border)"}
+                  />
+                  <button
+                    onClick={() => setShowKey(!showKey)}
+                    style={{
+                      position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)",
+                      background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer"
+                    }}
+                  >
+                    {showKey ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              )}
+              <p style={{ marginTop: 12, fontSize: "0.75rem", color: "var(--text-muted)", lineHeight: 1.5 }}>
+                {provider === "gemini" 
+                  ? "Standard high-speed analysis via Google Cloud." 
+                  : "Access free models like DeepSeek or Llama 3 via OpenRouter."}
+              </p>
+            </div>
+ </div>
+
             <div style={{ background: "var(--surface)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border)", overflow: "hidden" }}>
               <label className="toggle-row" style={{ padding: "16px 20px" }}>
                 <div>
-                  <div style={{ fontWeight: 600, fontSize: "0.875rem", color: "var(--text-primary)" }}>TalentScout Network</div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <div style={{ fontWeight: 600, fontSize: "0.875rem", color: "var(--text-primary)" }}>TalentScout Network</div>
+                    <span className="demo-yellow-tag">DEMO DATA</span>
+                  </div>
                   <div style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: 2 }}>
-                    50+ synthetic profiles for demo runs
+                    Verified synthetic profiles for testing
                   </div>
                 </div>
                 <div
@@ -270,7 +436,6 @@ export default function LaunchpadPage() {
               </label>
             </div>
 
-            {/* Resume Upload */}
             <div style={{ background: "var(--surface)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border)", overflow: "hidden" }}>
               <label className="toggle-row" style={{ padding: "16px 20px", borderBottom: useResumes ? "1px solid var(--border)" : "none" }}>
                 <div>
@@ -308,7 +473,6 @@ export default function LaunchpadPage() {
               )}
             </div>
 
-            {/* CSV / JSON Batch */}
             <div style={{ background: "var(--surface)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border)", overflow: "hidden" }}>
               <label className="toggle-row" style={{ padding: "16px 20px", borderBottom: useData ? "1px solid var(--border)" : "none" }}>
                 <div>
@@ -432,42 +596,6 @@ export default function LaunchpadPage() {
               )}
             </div>
 
-            {/* API Settings */}
-            <div className="card">
-              <div className="card-title" style={{ marginBottom: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}><Settings size={14} /> Gemini Configurations</div>
-                {userApiKey && <span className="chip chip-green" style={{ fontSize: "10px" }}>Active</span>}
-              </div>
-              <div style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: 12, lineHeight: 1.5 }}>
-                Provide your own Gemini API Key to bypass global rate limits. Your key is stored locally in your browser.
-              </div>
-              <div style={{ position: "relative" }}>
-                <input
-                  type={showApiKey ? "text" : "password"}
-                  className="input"
-                  placeholder="Paste GEMINI_API_KEY here..."
-                  value={userApiKey}
-                  onChange={e => {
-                    const val = e.target.value.trim();
-                    setUserApiKey(val);
-                    localStorage.setItem("TALENT_SCOUT_API_KEY", val);
-                  }}
-                  style={{ paddingRight: 40, fontSize: "12px" }}
-                />
-                <button
-                  className="btn btn-ghost btn-sm"
-                  style={{ position: "absolute", top: 4, right: 4, height: 28, width: 28, padding: 0 }}
-                  onClick={() => setShowApiKey(!showApiKey)}
-                >
-                  {showApiKey ? <Eye size={12} className="text-blue" /> : <Eye size={12} />}
-                </button>
-              </div>
-              {!userApiKey && (
-                <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 6, fontSize: "10px", color: "var(--amber)", fontWeight: 600 }}>
-                  <AlertTriangle size={12} /> Using server-side default key
-                </div>
-              )}
-            </div>
 
             {/* File queue */}
             {files.length > 0 && (
@@ -554,8 +682,15 @@ export default function LaunchpadPage() {
 
             {/* Error */}
             {error && (
-              <div style={{ display: "flex", alignItems: "center", gap: 8, background: "var(--red-light)", border: "2px solid var(--red-mid)", padding: "10px 14px", fontSize: "0.875rem", color: "var(--red)", borderRadius: "var(--radius-sm)" }}>
-                <AlertTriangle size={16} /> {error}
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, background: "var(--red-light)", border: "2px solid var(--red-mid)", padding: "10px 14px", fontSize: "0.875rem", color: "var(--red)", borderRadius: "var(--radius-sm)" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <AlertTriangle size={16} /> {error}
+                </div>
+                {(error.includes("429") || error.includes("Rate limit")) && (
+                  <div style={{ padding: "8px", background: "rgba(251, 191, 36, 0.1)", border: "1px solid var(--yellow)", borderRadius: 6, color: "var(--yellow)", fontSize: "0.8rem", fontWeight: 500 }}>
+                    💡 Tip: If the rate limit persists, try using your own API key in the configuration above.
+                  </div>
+                )}
               </div>
             )}
 

@@ -109,6 +109,13 @@ export default function GuidePage() {
           </p>
         </div>
 
+        <div style={{ padding: 24, borderBottom: "1px solid var(--border)" }}>
+          <strong style={{ display: "block", marginBottom: 8, fontSize: "1rem" }}>Are my API keys stored on your servers?</strong>
+          <p style={{ color: "var(--text-muted)", fontSize: "0.9rem", lineHeight: 1.6, margin: 0 }}>
+            Absolutely not. TalentScout AI follows a "Zero Persistence" policy for client credentials. All API keys (Gemini, OpenRouter, etc.) are stored strictly in your browser's local storage and used only for direct backend requests. We never log, save, or track your personal keys.
+          </p>
+        </div>
+
         <div style={{ padding: 24 }}>
           <strong style={{ display: "block", marginBottom: 8, fontSize: "1rem" }}>Can I export the Shortlist?</strong>
           <p style={{ color: "var(--text-muted)", fontSize: "0.9rem", lineHeight: 1.6, margin: 0 }}>

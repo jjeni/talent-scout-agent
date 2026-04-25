@@ -2,17 +2,15 @@ import asyncio
 import logging
 import os
 
-import google.generativeai as genai
 from dotenv import load_dotenv
 
 from models.jd_schema import JDSchema
 from models.candidate_schema import UnifiedCandidateProfile
 from models.output_schema import ConversationTranscript, ConversationTurn
+from utils.llm_utils import generate_content
 
 load_dotenv()
 logger = logging.getLogger(__name__)
-
-from utils.gemini_utils import get_model
 
 # EMERGENCY QUOTA ADJUSTMENT: 
 # Using Gemini 2.5 Flash Lite because standard Flash has hit limit 0.
@@ -21,13 +19,10 @@ MODEL_LITE = "gemini-2.5-flash-lite"
 
 MAX_TURNS = 3 
 MIN_TURNS = 2
-RPM_LIMIT_DELAY = 12.0 # 60s / 5 RPM = 12s per call to be perfectly safe, or 3-4s with some overlap
-# We'll use 6s to allow small bursts while staying close to the average limit.
+RPM_LIMIT_DELAY = 12.0 # 60s / 5 RPM = 12s per call to be perfectly safe
 
 # Shared semaphore to ensure only ONE conversation runs at a time globally
-# to prevent 429 errors from parallel candidate processing.
 global_convo_semaphore = asyncio.Semaphore(1)
-
 
 def _build_agent_system_prompt(candidate: UnifiedCandidateProfile, jd: JDSchema) -> str:
     skills_str = ", ".join(candidate.skills[:8]) if candidate.skills else "various skills"
@@ -81,10 +76,8 @@ STRICT RULES:
 - Maintain a warm, conversational tone — not robotic or scripted
 """
 
-
 def _build_candidate_system_prompt(candidate: UnifiedCandidateProfile, jd: JDSchema) -> str:
     """Prompt to simulate a realistic candidate response persona."""
-    # Randomise interest level based on profile-JD fit signals
     interest_level = "moderately interested"
     if candidate.experience_years >= (jd.experience.min_years or 0) * 0.9 if jd.experience else True:
         interest_level = "genuinely interested but thoughtful"
@@ -106,121 +99,67 @@ PERSONA RULES:
 - Do NOT break character
 """
 
-
 def _detect_exit(candidate_reply: str) -> tuple[bool, str]:
-    """Detect if conversation should end based on candidate reply."""
     reply_lower = candidate_reply.lower()
-
-    decline_signals = [
-        "not interested", "no thanks", "not looking", "happy where i am",
-        "not a good fit", "pass on this", "decline", "not for me",
-        "not right now", "wrong timing"
-    ]
-    positive_close_signals = [
-        "what are next steps", "next steps", "sounds perfect", "i'm in",
-        "sign me up", "let's do it", "when can we", "schedule"
-    ]
+    decline_signals = ["not interested", "no thanks", "not looking", "happy where i am", "not a good fit"]
+    positive_close_signals = ["what are next steps", "sounds perfect", "let's do it"]
 
     for signal in decline_signals:
-        if signal in reply_lower:
-            return True, "declined"
+        if signal in reply_lower: return True, "declined"
     for signal in positive_close_signals:
-        if signal in reply_lower:
-            return True, "positive_close"
-
+        if signal in reply_lower: return True, "positive_close"
     return False, ""
 
-
-async def run_conversation(candidate: UnifiedCandidateProfile, jd: JDSchema, api_key: str = None) -> ConversationTranscript:
-    """Simulates a full exchange. Both personas use models from get_model."""
+async def run_conversation(candidate: UnifiedCandidateProfile, jd: JDSchema, api_key: str = None, provider: str = "gemini", model: str = None) -> ConversationTranscript:
+    """Simulates a full exchange using a stateless approach for multiple provider support."""
     async with global_convo_semaphore:
-        agent_model = await get_model(MODEL_FLASH, api_key)
-        candidate_model = await get_model(MODEL_LITE, api_key)
-
-        agent_chat = agent_model.start_chat(history=[])
-        candidate_chat = candidate_model.start_chat(history=[])
+        agent_sys = _build_agent_system_prompt(candidate, jd)
+        cand_sys = _build_candidate_system_prompt(candidate, jd)
 
         turns: list[ConversationTurn] = []
         exit_reason = "max_turns"
-
-        logger.info(f"Agent-Candidate interaction starting for {candidate.name} (respecting RPM)...")
-        await asyncio.sleep(2.0) 
         
-        agent_opening_resp = await agent_chat.send_message_async(
-            "Start the conversation with a personalized outreach message. Be warm and brief."
+        # 1. Recruiter Opening
+        await asyncio.sleep(2.0)
+        agent_msg = await generate_content(
+            "Start the conversation with a personalized outreach message. Be warm and brief.",
+            provider=provider, model_name=model or MODEL_FLASH, api_key=api_key,
+            system_instruction=agent_sys, temperature=0.7
         )
-        agent_opening = agent_opening_resp.text.strip()
 
         for turn_num in range(MAX_TURNS):
-            await asyncio.sleep(RPM_LIMIT_DELAY / 2) 
-
-            cand_context = agent_opening if turn_num == 0 else turns[-1].agent
-            candidate_reply_resp = await candidate_chat.send_message_async(
-                f'The recruiter said: "{cand_context}"\nRespond naturally as the candidate.'
+            await asyncio.sleep(RPM_LIMIT_DELAY / 2)
+            
+            # Candidate Reply
+            cand_msg = await generate_content(
+                f'The recruiter said: "{agent_msg}". Respond naturally.',
+                provider=provider, model_name=model or MODEL_LITE, api_key=api_key,
+                system_instruction=cand_sys, temperature=0.8
             )
-            candidate_reply = candidate_reply_resp.text.strip()
-
-            turns.append(ConversationTurn(
-                turn=turn_num + 1,
-                agent=cand_context,
-                candidate=candidate_reply,
-            ))
-
-            should_exit, reason = _detect_exit(candidate_reply)
-            if should_exit and turn_num >= MIN_TURNS - 1:
+            
+            turns.append(ConversationTurn(turn=turn_num + 1, agent=agent_msg, candidate=cand_msg))
+            
+            should_exit, reason = _detect_exit(cand_msg)
+            if should_exit:
                 exit_reason = reason
+                break
+                
+            if turn_num == MAX_TURNS - 1:
                 break
 
             await asyncio.sleep(RPM_LIMIT_DELAY / 2)
-
-            history_summary = "\n".join(
-                f"Agent: {t.agent}\nCandidate: {t.candidate}" for t in turns
-            )
-            agent_reply_resp = await agent_chat.send_message_async(
-                f"Conversation so far:\n{history_summary}\n\n"
-                f"Send your next message to {candidate.name}. "
-                f"Move naturally toward understanding their interest and availability."
-            )
-            agent_reply = agent_reply_resp.text.strip()
-
-            # Store agent reply for next iteration
-            turns[-1] = ConversationTurn(
-                turn=turn_num + 1,
-                agent=cand_context,
-                candidate=candidate_reply,
+            
+            # Recruiter Follow-up
+            history = "\n".join([f"Agent: {t.agent}\nCandidate: {t.candidate}" for t in turns])
+            agent_msg = await generate_content(
+                f"Conversation history:\n{history}\n\nSend your next follow-up message.",
+                provider=provider, model_name=MODEL_FLASH, api_key=api_key,
+                system_instruction=agent_sys, temperature=0.7
             )
 
-            # Peek — if this is the last allowed turn, close gracefully
-            if turn_num == MAX_TURNS - 1:
-                await asyncio.sleep(3.0)
-                closing_resp = await agent_chat.send_message_async(
-                    "The conversation has covered the key points. Send a brief, warm closing message."
-                )
-                closing = closing_resp.text.strip()
-                turns.append(ConversationTurn(
-                    turn=turn_num + 2,
-                    agent=agent_reply,
-                    candidate="[Conversation closed]",
-                ))
-                break
-            else:
-                turns.append(ConversationTurn(
-                    turn=turn_num + 2,
-                    agent=agent_reply,
-                    candidate="",  # Will be filled next iteration
-                ))
-                agent_opening = agent_reply  # carry forward for next candidate turn
-
-    # Clean up empty last turn if present
-    turns = [t for t in turns if t.agent and t.candidate]
-
-    logger.info(
-        f"Conversation for {candidate.name} complete: {len(turns)} turns, exit={exit_reason}"
-    )
-
-    return ConversationTranscript(
-        candidate_id=candidate.id,
-        turns=turns,
-        total_turns=len(turns),
-        exit_reason=exit_reason,
-    )
+        return ConversationTranscript(
+            candidate_id=candidate.id,
+            turns=turns,
+            total_turns=len(turns),
+            exit_reason=exit_reason,
+        )

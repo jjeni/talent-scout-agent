@@ -23,7 +23,7 @@ from models.candidate_schema import (
     ParseSummary,
 )
 
-from utils.gemini_utils import get_model
+from utils.llm_utils import generate_content
 
 load_dotenv()
 logger = logging.getLogger(__name__)
@@ -173,17 +173,23 @@ def _extract_text_docx(file_bytes: bytes) -> str:
     return "\n".join(p.text for p in doc.paragraphs if p.text.strip())
 
 
-async def _parse_text_with_llm(raw_text: str, source_type: InputType, model) -> UnifiedCandidateProfile:
-    """Use Gemini to parse arbitrary resume text into a UnifiedCandidateProfile."""
+async def _parse_text_with_llm(raw_text: str, source_type: InputType, api_key: str = None, provider: str = "gemini") -> UnifiedCandidateProfile:
+    """Use LLM to parse arbitrary resume text into a UnifiedCandidateProfile."""
     prompt = f"{PROFILE_PARSE_PROMPT}\n\n--- RESUME TEXT ---\n{raw_text[:4000]}\n--- END ---"
     
-    # Rate limit check: 5 RPM means we should wait ~12s if several resumes are in a batch, 
-    # but we'll start with 5s and use a global lock if needed.
+    # Throttle
     await asyncio.sleep(5.0) 
 
     try:
-        response = await model.generate_content_async(prompt)
-        data = json.loads(response.text)
+        raw = await generate_content(
+            prompt=prompt,
+            provider=provider,
+            model_name=RESUME_MODEL,
+            api_key=api_key,
+            response_mime_type="application/json",
+            temperature=0.1
+        )
+        data = json.loads(raw)
         raw_edu = data.get("education", {}) or {}
         education = EducationBlock(**raw_edu) if raw_edu else None
         skills = data.get("skills", [])
@@ -209,21 +215,15 @@ async def _parse_text_with_llm(raw_text: str, source_type: InputType, model) -> 
         )
 
 
-async def ingest_resume_bytes(file_bytes: bytes, filename: str, api_key: str = None) -> UnifiedCandidateProfile:
-    """Uses Gemini vision/multimodal features to parse PDF/DOCX resumes."""
-    model = await get_model(
-        model_name=RESUME_MODEL,
-        api_key=api_key,
-        generation_config={"response_mime_type": "application/json", "temperature": 0.1}
-    )
-    
+async def ingest_resume_bytes(file_bytes: bytes, filename: str, api_key: str = None, provider: str = "gemini") -> UnifiedCandidateProfile:
+    """Uses LLM features to parse PDF/DOCX resumes."""
     ext = Path(filename).suffix.lower()
     if ext == ".pdf":
         text = _extract_text_pdf(file_bytes)
-        return await _parse_text_with_llm(text, InputType.PDF, model)
+        return await _parse_text_with_llm(text, InputType.PDF, api_key, provider)
     elif ext == ".docx":
         text = _extract_text_docx(file_bytes)
-        return await _parse_text_with_llm(text, InputType.DOCX, model)
+        return await _parse_text_with_llm(text, InputType.DOCX, api_key, provider)
     else:
         raise ValueError(f"Unsupported resume format: {ext}")
 
@@ -373,7 +373,7 @@ async def ingest_from_default_dataset() -> list[UnifiedCandidateProfile]:
     """Load the built-in synthetic candidate dataset."""
     from data.candidates import CANDIDATES
     profiles = []
-    for item in CANDIDATES:
+    for item in CANDIDATES[:10]:
         raw_edu = item.get("education", {}) or {}
         education = EducationBlock(**raw_edu) if raw_edu else None
         skills = item.get("skills", [])

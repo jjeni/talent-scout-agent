@@ -17,6 +17,10 @@
   --text-primary:          #f3f4f6;
   --text-secondary:        #9ca3af;
   --text-muted:            #6b7280;
+  /* Design system extras */
+  --yellow:                #fbbf24;
+  --yellow-light:          rgba(251, 191, 36, 0.1);
+  --yellow-mid:            rgba(251, 191, 36, 0.25);
 
   /* Brand accents */
   --blue:                  #508ff8;
@@ -793,3 +797,45 @@ input[type=range]::-webkit-slider-thumb {
 ::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: var(--bg-secondary); }
 ::-webkit-scrollbar-thumb { background: var(--border-strong); }
+
+/* Demo Specific Styles */
+.demo-yellow-btn {
+  background: var(--yellow-light) !important;
+  color: var(--yellow) !important;
+  border: 1px solid var(--yellow-mid) !important;
+  animation: pulse-yellow 2s infinite;
+  font-weight: 700 !important;
+  transition: all 0.3s ease;
+}
+
+.demo-yellow-btn:hover {
+  background: var(--yellow-mid) !important;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(251, 191, 36, 0.15);
+}
+
+.demo-yellow-tag {
+  background: var(--yellow-light) !important;
+  color: var(--yellow) !important;
+  border: 1px solid var(--yellow-mid) !important;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  animation: glow-yellow 3s infinite;
+}
+
+@keyframes pulse-yellow {
+  0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.2); }
+  50% { transform: scale(1.02); box-shadow: 0 0 0 8px rgba(251, 191, 36, 0); }
+  100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(251, 191, 36, 0); }
+}
+
+@keyframes glow-yellow {
+  0% { border-color: var(--yellow-mid); }
+  50% { border-color: var(--yellow); }
+  100% { border-color: var(--yellow-mid); }
+}

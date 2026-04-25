@@ -88,19 +88,30 @@ export interface TranscriptData {
 const getHeaders = (base: any = {}) => {
   const headers = { ...base };
   if (typeof window !== "undefined") {
-    const key = localStorage.getItem("TALENT_SCOUT_API_KEY");
-    if (key) headers["X-Gemini-API-Key"] = key;
+    const useOwn = localStorage.getItem("USE_OWN_KEY") === "true";
+    
+    if (useOwn) {
+      const provider = localStorage.getItem("LLM_PROVIDER") || "gemini";
+      const key = provider === "openrouter" 
+        ? localStorage.getItem("OPENROUTER_API_KEY") 
+        : (localStorage.getItem("GEMINI_API_KEY") || localStorage.getItem("TALENT_SCOUT_API_KEY"));
+        
+      if (key) headers["X-Gemini-API-Key"] = key;
+    }
   }
   return headers;
 };
 
-export async function parseJD(jdText: string): Promise<JDParseResult> {
+export async function parseJD(jdText: string, provider: string = "gemini", model: string = ""): Promise<JDParseResult> {
   const res = await fetch(`${BACKEND_URL}/api/parse-jd`, {
     method: "POST",
     headers: getHeaders({ "Content-Type": "application/json" }),
-    body: JSON.stringify({ jd_text: jdText }),
+    body: JSON.stringify({ jd_text: jdText, provider, model }),
   });
-  if (!res.ok) throw new Error(`JD parse failed: ${res.statusText}`);
+  if (!res.ok) {
+    console.error("JD Parse Error:", res.status, res.statusText);
+    throw new Error(`JD parse failed: ${res.statusText}`);
+  }
   return res.json();
 }
 
@@ -112,6 +123,8 @@ export async function startPipeline(params: {
   topN?: number;
   wMatch?: number;
   wInterest?: number;
+  provider?: string;
+  model?: string;
 }): Promise<{ job_id: string; status: string }> {
   const res = await fetch(`${BACKEND_URL}/api/start-pipeline`, {
     method: "POST",
@@ -124,6 +137,8 @@ export async function startPipeline(params: {
       top_n: params.topN ?? 10,
       w_match: params.wMatch ?? 0.6,
       w_interest: params.wInterest ?? 0.4,
+      provider: params.provider ?? "gemini",
+      model: params.model ?? "",
     }),
   });
   if (!res.ok) throw new Error(`Pipeline start failed: ${res.statusText}`);
@@ -139,6 +154,8 @@ export async function startPipelineWithFiles(params: {
   topN?: number;
   wMatch?: number;
   wInterest?: number;
+  provider?: string;
+  model?: string;
 }): Promise<{ job_id: string; status: string; files_ingested: number }> {
   const form = new FormData();
   form.append("jd_text", params.jdText);
@@ -147,6 +164,8 @@ export async function startPipelineWithFiles(params: {
   form.append("top_n", String(params.topN ?? 10));
   form.append("w_match", String(params.wMatch ?? 0.6));
   form.append("w_interest", String(params.wInterest ?? 0.4));
+  form.append("provider", params.provider ?? "gemini");
+  form.append("model", params.model ?? "");
   form.append("candidate_urls", (params.candidateUrls || []).join("\n"));
   params.files.forEach((f) => form.append("files", f));
 
@@ -191,7 +210,11 @@ export function subscribePipelineStatus(
 ): () => void {
   let url = `${BACKEND_URL}/api/pipeline/status/${jobId}`;
   if (typeof window !== "undefined") {
-    const key = localStorage.getItem("TALENT_SCOUT_API_KEY");
+    const provider = localStorage.getItem("LLM_PROVIDER") || "gemini";
+    const key = provider === "openrouter" 
+      ? localStorage.getItem("OPENROUTER_API_KEY") 
+      : (localStorage.getItem("GEMINI_API_KEY") || localStorage.getItem("TALENT_SCOUT_API_KEY"));
+      
     if (key) url += `?api_key=${encodeURIComponent(key)}`;
   }
   const es = new EventSource(url);

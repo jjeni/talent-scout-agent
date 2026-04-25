@@ -194,6 +194,13 @@ function PipelineInner() {
             <div style={{ fontSize: "0.875rem", color: "var(--text-secondary)", fontFamily: "'JetBrains Mono', monospace", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
               {errMsg}
             </div>
+            
+            {(errMsg.includes("429") || errMsg.includes("Rate limit")) && (
+              <div style={{ marginTop: 14, padding: "10px", background: "rgba(251, 191, 36, 0.1)", border: "1px solid var(--yellow)", borderRadius: 8, color: "var(--yellow)", fontSize: "0.85rem", fontWeight: 500 }}>
+                💡 Tip: This model is currently hit by rate limits. Try using your own API key in the Launchpad configuration. We never store your keys.
+              </div>
+            )}
+
             <button className="btn btn-outline btn-sm" style={{ marginTop: 14 }} onClick={() => router.push("/")}>
               ← Return to Launchpad
             </button>

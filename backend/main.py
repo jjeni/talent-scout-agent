@@ -60,7 +60,7 @@ app = FastAPI(
     version="1.0.0",
 )
 
-CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
+CORS_ORIGINS = ["*"]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=CORS_ORIGINS,
@@ -82,15 +82,19 @@ W_INTEREST = float(os.getenv("INTEREST_WEIGHT", "0.4"))
 
 class JDParseRequest(BaseModel):
     jd_text: str
+    provider: str = "gemini"
+    model: str = "gemini-2.5-flash-lite"
 
 class PipelineRunRequest(BaseModel):
-    job_id: str
     jd_text: str
-    candidate_urls: list[str] = []
+    job_id: Optional[str] = None
     use_default_dataset: bool = True
     top_n: int = 10
     w_match: float = 0.6
     w_interest: float = 0.4
+    candidate_urls: Optional[list[str]] = None
+    provider: str = "gemini"
+    model: str = "gemini-2.5-flash-lite"
 
 
 # ─── Helper: SSE Emitter ─────────────────────────────────────────────────────
@@ -117,7 +121,7 @@ async def health():
 async def api_parse_jd(request: JDParseRequest, user_key: Optional[str] = Header(None, alias="X-Gemini-API-Key")):
     """Parse a raw job description into structured JSON."""
     try:
-        jd = await parse_jd(request.jd_text, api_key=user_key)
+        jd = await parse_jd(request.jd_text, api_key=user_key, provider=request.provider, model=request.model)
         return jd.model_dump()
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -201,7 +205,13 @@ async def api_start_pipeline(request: PipelineRunRequest, user_key: Optional[str
     Returns a job_id to poll for status via SSE.
     """
     job_id = request.job_id or str(uuid.uuid4())
-    _jobs[job_id] = {"status": "started", "result": None, "api_key": user_key}
+    _jobs[job_id] = {
+        "status": "started", 
+        "result": None, 
+        "api_key": user_key, 
+        "provider": request.provider,
+        "model": request.model
+    }
     _job_updates[job_id] = asyncio.Queue()
 
     asyncio.create_task(_run_pipeline_task(job_id, request))
@@ -219,13 +229,21 @@ async def api_start_pipeline_with_files(
     candidate_urls: str = Form(default=""),
     files: list[UploadFile] = File(default=[]),
     user_key: Optional[str] = Header(None, alias="X-Gemini-API-Key"),
+    provider: str = Form(default="gemini"),
+    model: str = Form(default="gemini-2.5-flash-lite"),
 ):
     """
     Combined multipart endpoint — upload resumes/CSV/JSON alongside JD text.
-    All file ingestion happens server-side before the pipeline starts.
     """
     fid = job_id.strip() or f"job_{uuid.uuid4().hex[:10]}"
-    _jobs[fid] = {"status": "started", "result": None, "extra_profiles": [], "api_key": user_key}
+    _jobs[fid] = {
+        "status": "started", 
+        "result": None, 
+        "extra_profiles": [], 
+        "api_key": user_key, 
+        "provider": provider,
+        "model": model
+    }
     _job_updates[fid] = asyncio.Queue()
 
     # Pre-ingest uploaded files so they're available inside the pipeline task
@@ -239,7 +257,7 @@ async def api_start_pipeline_with_files(
             elif filename.endswith(".json"):
                 extra_profiles.extend(ingest_json(content.decode("utf-8", errors="ignore")))
             elif filename.endswith((".pdf", ".docx")):
-                profile = await ingest_resume_bytes(content, filename, api_key=user_key)
+                profile = await ingest_resume_bytes(content, filename, api_key=user_key, provider=provider)
                 extra_profiles.append(profile)
         except Exception as e:
             logger.warning(f"File pre-ingest error ({f.filename}): {e}")
@@ -256,6 +274,8 @@ async def api_start_pipeline_with_files(
         top_n=top_n,
         w_match=w_match,
         w_interest=w_interest,
+        provider=provider,
+        model=model,
     )
     asyncio.create_task(_run_pipeline_task(fid, request))
     return {"job_id": fid, "status": "started", "files_ingested": len(extra_profiles)}
@@ -345,11 +365,13 @@ async def _run_pipeline_task(job_id: str, request: PipelineRunRequest):
     try:
         # ── Stage 1: Parse JD ────────────────────────────────────────────────
         api_key = _jobs[job_id].get("api_key")
+        provider = _jobs[job_id].get("provider", "gemini")
+        model_override = _jobs[job_id].get("model")
         await _emit(job_id, PipelineStatus(
             job_id=job_id, stage="parsing_jd",
             progress=5, message="Parsing job description..."
         ))
-        jd = await parse_jd(request.jd_text, api_key=api_key)
+        jd = await parse_jd(request.jd_text, api_key=api_key, provider=provider, model=model_override)
         await _emit(job_id, PipelineStatus(
             job_id=job_id, stage="parsing_jd",
             progress=15, message=f"JD parsed: '{jd.role_title}' | {len(jd.required_skills)} required skills"
@@ -398,7 +420,7 @@ async def _run_pipeline_task(job_id: str, request: PipelineRunRequest):
         scored: list[ScoredCandidate] = []
 
         for i, candidate in enumerate(passed):
-            match_breakdown = score_candidate(candidate, jd)
+            match_breakdown = score_candidate(candidate, jd, api_key=api_key)
             scored.append(ScoredCandidate(
                 profile=candidate,
                 match_score=match_breakdown.total,
@@ -433,7 +455,7 @@ async def _run_pipeline_task(job_id: str, request: PipelineRunRequest):
         ))
 
         # ── Stage 3: Conversation + Interest Scoring ──────────────────────────
-        api_key = _jobs[job_id].get("api_key")
+        model_override = _jobs[job_id].get("model")
         for i, cand in enumerate(shortlisted_for_convo):
             await _emit(job_id, PipelineStatus(
                 job_id=job_id, stage="conversing",
@@ -443,8 +465,8 @@ async def _run_pipeline_task(job_id: str, request: PipelineRunRequest):
             ))
 
             try:
-                transcript = await run_conversation(cand.profile, jd, api_key=api_key)
-                interest_breakdown = await score_interest(transcript, api_key=api_key)
+                transcript = await run_conversation(cand.profile, jd, api_key=api_key, provider=provider, model=model_override)
+                interest_breakdown = await score_interest(transcript, api_key=api_key, provider=provider, model=model_override)
 
                 cand.transcript = transcript
                 cand.interest_score = interest_breakdown.total
