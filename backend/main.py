@@ -60,7 +60,11 @@ app = FastAPI(
     version="1.0.0",
 )
 
-CORS_ORIGINS = ["*"]
+CORS_ORIGINS = [
+    "http://localhost:3000",
+    "https://hr-scout-agent.vercel.app/",
+    "*"
+]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=CORS_ORIGINS,
