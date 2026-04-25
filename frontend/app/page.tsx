@@ -217,7 +217,7 @@ export default function LaunchpadPage() {
                     Gemini will automatically parse required skills, seniority, and metadata to calibrate candidate searches.
                   </div>
                 </div>
-                <button className="btn btn-ghost btn-sm demo-yellow-btn" onClick={() => setJd(SAMPLE_JD)}>
+                <button className="btn btn-outline btn-sm btn-yellow-glow" onClick={() => setJd(SAMPLE_JD)}>
                   Use sample JD
                 </button>
               </div>
@@ -298,13 +298,13 @@ export default function LaunchpadPage() {
               </div>
               
               <div style={{ 
-                background: "rgba(59, 130, 246, 0.1)", 
-                border: "1px solid rgba(59, 130, 246, 0.2)", 
+                background: "rgba(251, 191, 36, 0.05)", 
+                border: "1px solid rgba(251, 191, 36, 0.2)", 
                 borderRadius: "var(--radius-sm)", 
                 padding: "8px 12px", 
                 marginBottom: 16,
                 fontSize: "0.75rem",
-                color: "var(--blue)",
+                color: "var(--yellow)",
                 display: "flex",
                 alignItems: "center",
                 gap: 8
@@ -313,59 +313,36 @@ export default function LaunchpadPage() {
                 <span>Note: High-capacity free models may take longer to respond. We never store your API keys.</span>
               </div>
 
-              <div style={{ display: "flex", gap: 8, background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", padding: 4, marginBottom: 16 }}>
+              <div className="toggle-segment" style={{ marginBottom: 16 }}>
                 <button
                   onClick={() => handleToggleOwnKey(false)}
-                  style={{
-                    flex: 1, padding: "8px 0", fontSize: "0.75rem", fontWeight: 700, borderRadius: "var(--radius-sm)", transition: "all 0.2s",
-                    border: "none", cursor: "pointer",
-                    background: !useOwnKey ? "var(--bg-card)" : "transparent",
-                    color: !useOwnKey ? "var(--text)" : "var(--text-muted)",
-                    boxShadow: !useOwnKey ? "0 4px 12px rgba(0,0,0,0.2)" : "none"
-                  }}
+                  className={`toggle-segment-btn ${!useOwnKey ? "active" : ""}`}
                 >
                   DEFAULT KEY
                 </button>
                 <button
                   onClick={() => handleToggleOwnKey(true)}
-                  style={{
-                    flex: 1, padding: "8px 0", fontSize: "0.75rem", fontWeight: 700, borderRadius: "var(--radius-sm)", transition: "all 0.2s",
-                    border: "none", cursor: "pointer",
-                    background: useOwnKey ? "var(--bg-card)" : "transparent",
-                    color: useOwnKey ? "var(--text)" : "var(--text-muted)",
-                    boxShadow: useOwnKey ? "0 4px 12px rgba(0,0,0,0.2)" : "none"
-                  }}
+                  className={`toggle-segment-btn ${useOwnKey ? "active" : ""}`}
                 >
                   OWN KEY
                 </button>
               </div>
 
-              <div style={{ display: "flex", gap: 8, background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", padding: 4, marginBottom: 16 }}>
+              <div className="toggle-segment" style={{ marginBottom: 16 }}>
                 <button
                   onClick={() => handleSetProvider("gemini")}
-                  style={{
-                    flex: 1, padding: "8px 0", fontSize: "0.75rem", fontWeight: 700, borderRadius: "var(--radius-sm)", transition: "all 0.2s",
-                    border: "none", cursor: "pointer",
-                    background: provider === "gemini" ? "var(--bg-card)" : "transparent",
-                    color: provider === "gemini" ? "var(--text)" : "var(--text-muted)",
-                    boxShadow: provider === "gemini" ? "0 4px 12px rgba(0,0,0,0.2)" : "none"
-                  }}
+                  className={`toggle-segment-btn ${provider === "gemini" ? "active" : ""}`}
                 >
                   GEMINI
                 </button>
                 <button
                   onClick={() => handleSetProvider("openrouter")}
-                  style={{
-                    flex: 1, padding: "8px 0", fontSize: "0.75rem", fontWeight: 700, borderRadius: "var(--radius-sm)", transition: "all 0.2s",
-                    border: "none", cursor: "pointer",
-                    background: provider === "openrouter" ? "var(--bg-card)" : "transparent",
-                    color: provider === "openrouter" ? "var(--text)" : "var(--text-muted)",
-                    boxShadow: provider === "openrouter" ? "0 4px 12px rgba(0,0,0,0.2)" : "none"
-                  }}
+                  className={`toggle-segment-btn ${provider === "openrouter" ? "active" : ""}`}
                 >
                   OPENROUTER
                 </button>
               </div>
+
 
               {provider === "openrouter" && (
                 <div style={{ marginBottom: 16 }}>
