@@ -1,0 +1,29 @@
+# Node
+node_modules/
+.next/
+out/
+build/
+dist/
+.env*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+ENV/
+.venv/
+.pytest_cache/
+
+# OS/IDEs
+.DS_Store
+.vscode/
+.idea/
+
+# App Specific
+scratch/
+backend/uploads/*
+!backend/uploads/.gitkeep
+frontend/public/resumes/*
+!frontend/public/resumes/.gitkeep

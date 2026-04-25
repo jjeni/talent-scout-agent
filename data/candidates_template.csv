@@ -1,0 +1,9 @@
+id,name,skills,experience_years,location,email,education
+cand_001,Alice Johnson,"React,Node.js,PostgreSQL,AWS,TypeScript",6,Remote,alice@email.com,Bachelor's Computer Science
+cand_002,Bob Chen,"Python,FastAPI,Docker,Kubernetes,Redis",8,San Francisco CA,bob@email.com,Master's Software Engineering
+cand_003,Priya Nair,"React,TypeScript,GraphQL,Node.js,Jest",5,Remote,priya@email.com,Bachelor's Computer Science
+cand_004,James Okafor,"Node.js,PostgreSQL,AWS,Stripe,Express",7,New York NY,james@email.com,Bachelor's Information Systems
+cand_005,Sofia Kim,"Vue.js,Python,PostgreSQL,Docker,CI/CD",4,Remote,sofia@email.com,Bachelor's Computer Engineering
+cand_006,Arjun Mehta,"Java,Spring Boot,AWS,Microservices,Kafka",9,Austin TX,arjun@email.com,Master's Computer Science
+cand_007,Elena Popescu,"React,Next.js,Node.js,MongoDB,AWS",6,Remote,elena@email.com,Bachelor's Computer Science
+cand_008,Marcus Brown,"Python,Django,PostgreSQL,Docker,Linux",5,Chicago IL,marcus@email.com,Bachelor's Software Engineering
