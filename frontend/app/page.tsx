@@ -204,7 +204,7 @@ export default function LaunchpadPage() {
                     Gemini will automatically parse required skills, seniority, and metadata to calibrate candidate searches.
                   </div>
                 </div>
-                <button className="btn btn-outline btn-sm btn-yellow-glow" onClick={() => setJd(SAMPLE_JD)}>
+                <button className="btn btn-outline btn-sm btn-blue-glow" onClick={() => setJd(SAMPLE_JD)}>
                   Use sample JD
                 </button>
               </div>
@@ -240,13 +240,13 @@ export default function LaunchpadPage() {
               </div>
               
               <div style={{ 
-                background: "rgba(251, 191, 36, 0.05)", 
-                border: "1px solid rgba(251, 191, 36, 0.2)", 
+                background: "rgba(80, 143, 248, 0.05)", 
+                border: "1px solid rgba(80, 143, 248, 0.2)", 
                 borderRadius: "var(--radius-sm)", 
                 padding: "8px 12px", 
                 marginBottom: 16,
                 fontSize: "0.75rem",
-                color: "var(--yellow)",
+                color: "var(--blue)",
                 display: "flex",
                 alignItems: "center",
                 gap: 8
@@ -342,7 +342,7 @@ export default function LaunchpadPage() {
                 <div>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <div style={{ fontWeight: 600, fontSize: "0.875rem", color: "var(--text-primary)" }}>TalentScout Network</div>
-                    <span className="demo-yellow-tag">DEMO DATA</span>
+                    <span className="demo-blue-tag">DEMO DATA</span>
                   </div>
                   <div style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: 2 }}>
                     Verified synthetic profiles for testing
@@ -606,7 +606,7 @@ export default function LaunchpadPage() {
                   <AlertTriangle size={16} /> {error}
                 </div>
                 {(error.includes("429") || error.includes("Rate limit")) && (
-                  <div style={{ padding: "8px", background: "rgba(251, 191, 36, 0.1)", border: "1px solid var(--yellow)", borderRadius: 6, color: "var(--yellow)", fontSize: "0.8rem", fontWeight: 500 }}>
+                  <div style={{ padding: "8px", background: "rgba(80, 143, 248, 0.1)", border: "1px solid var(--blue)", borderRadius: 6, color: "var(--blue)", fontSize: "0.8rem", fontWeight: 500 }}>
                     💡 Tip: If the rate limit persists, try using your own API key in the configuration above.
                   </div>
                 )}
