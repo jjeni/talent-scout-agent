@@ -26,6 +26,7 @@ from models.output_schema import (
     ShortlistOutput,
     ScoredCandidate,
     ConversationTranscript,
+    ConversationTurn,
 )
 from modules.jd_parser import parse_jd
 from modules.candidate_ingestor import (
@@ -85,7 +86,7 @@ async def log_requests(request, call_next):
 _jobs: dict[str, dict] = {}
 _job_updates: dict[str, asyncio.Queue] = {}
 
-TOP_N = int(os.getenv("TOP_N_CANDIDATES", "10"))
+TOP_N = int(os.getenv("TOP_N_CANDIDATES", "5"))
 W_MATCH = float(os.getenv("MATCH_WEIGHT", "0.6"))
 W_INTEREST = float(os.getenv("INTEREST_WEIGHT", "0.4"))
 
@@ -101,7 +102,7 @@ class PipelineRunRequest(BaseModel):
     jd_text: str
     job_id: Optional[str] = None
     use_default_dataset: bool = True
-    top_n: int = 10
+    top_n: int = 5
     w_match: float = 0.6
     w_interest: float = 0.4
     candidate_urls: Optional[list[str]] = None
@@ -384,12 +385,15 @@ async def _run_pipeline_task(job_id: str, request: PipelineRunRequest):
             progress=5, message="Parsing job description..."
         ))
         jd = await parse_jd(request.jd_text, api_key=api_key, provider=provider, model=model_override)
+        await asyncio.sleep(1.5) # Delay for visibility
         await _emit(job_id, PipelineStatus(
             job_id=job_id, stage="parsing_jd",
-            progress=15, message=f"JD parsed: '{jd.role_title}' | {len(jd.required_skills)} required skills"
+            progress=15, message=f"JD parsed: '{jd.role_title}' | {len(jd.required_skills)} required skills",
+            parsed_jd=jd
         ))
 
         # ── Stage 2a: Load candidates ─────────────────────────────────────────
+        await asyncio.sleep(1.0)
         await _emit(job_id, PipelineStatus(
             job_id=job_id, stage="ingesting",
             progress=20, message="Loading candidate profiles..."
@@ -416,6 +420,7 @@ async def _run_pipeline_task(job_id: str, request: PipelineRunRequest):
                 logger.warning(f"URL ingest failed ({url}): {e}")
 
         unique_profiles, _ = deduplicate(all_profiles)
+        await asyncio.sleep(1.5) # Delay for visibility
         file_note = f" + {len(extra_profiles)} from uploads" if extra_profiles else ""
         await _emit(job_id, PipelineStatus(
             job_id=job_id, stage="ingesting",
@@ -423,6 +428,7 @@ async def _run_pipeline_task(job_id: str, request: PipelineRunRequest):
         ))
 
         # ── Stage 2b: Hard filters + Match Scoring ────────────────────────────
+        await asyncio.sleep(1.0)
         await _emit(job_id, PipelineStatus(
             job_id=job_id, stage="matching",
             progress=35, message="Applying hard filters and computing match scores..."
@@ -448,6 +454,7 @@ async def _run_pipeline_task(job_id: str, request: PipelineRunRequest):
                 current_candidate=candidate.name,
                 message=f"Matched {i+1}/{len(passed)}: {candidate.name} → {match_breakdown.total:.0f}/100"
             ))
+            await asyncio.sleep(0.5) # Brief delay per candidate for visibility
 
         # Sort by match score, take top-N for conversation stage
         scored.sort(key=lambda x: x.match_score, reverse=True)
@@ -477,7 +484,31 @@ async def _run_pipeline_task(job_id: str, request: PipelineRunRequest):
             ))
 
             try:
-                transcript = await run_conversation(cand.profile, jd, api_key=api_key, provider=provider, model=model_override)
+                # Callback to emit turns live
+                async def on_turn(turn: ConversationTurn):
+                    await _emit(job_id, PipelineStatus(
+                        job_id=job_id, stage="conversing",
+                        progress=55 + int((i / top_n) * 30),
+                        current_candidate=cand.profile.name,
+                        message=f"Turn {turn.turn}: Engaging with {cand.profile.name}",
+                        last_turn=turn
+                    ))
+
+                transcript = await run_conversation(
+                    cand.profile, jd, 
+                    api_key=api_key, 
+                    provider=provider, 
+                    model=model_override,
+                    turn_callback=on_turn
+                )
+                
+                await _emit(job_id, PipelineStatus(
+                    job_id=job_id, stage="conversing",
+                    progress=55 + int(((i + 0.5) / top_n) * 30),
+                    current_candidate=cand.profile.name,
+                    message=f"Analyzing conversation for {cand.profile.name}...",
+                ))
+
                 interest_breakdown = await score_interest(transcript, api_key=api_key, provider=provider, model=model_override)
 
                 cand.transcript = transcript
@@ -498,6 +529,7 @@ async def _run_pipeline_task(job_id: str, request: PipelineRunRequest):
             scored_candidates.append(cand.model_dump())
 
         # ── Stage 4: Rank ─────────────────────────────────────────────────────
+        await asyncio.sleep(1.0)
         await _emit(job_id, PipelineStatus(
             job_id=job_id, stage="ranking",
             progress=90, message="Building ranked shortlist..."

@@ -55,16 +55,19 @@ export default function LaunchpadPage() {
   const [useResumes, setUseResumes] = useState(false);
   const [useData, setUseData] = useState(false);
   const [useUrls, setUseUrls] = useState(false);
-  const [topN, setTopN] = useState(10);
+  const [topN, setTopN] = useState(5);
   const [wMatch, setWMatch] = useState(60);
   const [files, setFiles] = useState<FileEntry[]>([]);
   const [dragResume, setDragR] = useState(false);
   const [dragCsv, setDragC] = useState(false);
   const [showKey, setShowKey] = useState(false);
-  const [provider, setProvider] = useState<"gemini" | "openrouter">("openrouter");
+  const [provider, setProvider] = useState<"gemini" | "openrouter" | "openai" | "anthropic" | "xai">("gemini");
   const [openrouterModel, setOpenrouterModel] = useState("google/gemma-3-27b-it:free");
   const [geminiKey, setGeminiKey] = useState("");
   const [openrouterKey, setOpenrouterKey] = useState("");
+  const [openaiKey, setOpenaiKey] = useState("");
+  const [anthropicKey, setAnthropicKey] = useState("");
+  const [xaiKey, setXaiKey] = useState("");
   const [useOwnKey, setUseOwnKey] = useState(false);
   const [showCsv, setShowCsv] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -73,12 +76,18 @@ export default function LaunchpadPage() {
   useEffect(() => {
     const savedGemini = localStorage.getItem("GEMINI_API_KEY") || "";
     const savedOR = localStorage.getItem("OPENROUTER_API_KEY") || "";
+    const savedOA = localStorage.getItem("OPENAI_API_KEY") || "";
+    const savedAN = localStorage.getItem("ANTHROPIC_API_KEY") || "";
+    const savedXAI = localStorage.getItem("XAI_API_KEY") || "";
     const savedORM = localStorage.getItem("OPENROUTER_MODEL") || "google/gemma-3-27b-it:free";
-    const savedProvider = (localStorage.getItem("LLM_PROVIDER") as "gemini" | "openrouter") || "gemini";
+    const savedProvider = (localStorage.getItem("LLM_PROVIDER") as any) || "gemini";
     const savedUseOwn = localStorage.getItem("USE_OWN_KEY") === "true";
 
     setGeminiKey(savedGemini);
     setOpenrouterKey(savedOR);
+    setOpenaiKey(savedOA);
+    setAnthropicKey(savedAN);
+    setXaiKey(savedXAI);
     setOpenrouterModel(savedORM);
     setProvider(savedProvider);
     setUseOwnKey(savedUseOwn);
@@ -89,28 +98,27 @@ export default function LaunchpadPage() {
     localStorage.setItem("USE_OWN_KEY", val.toString());
   };
 
-  const handleSaveGemini = (key: string) => {
-    setGeminiKey(key);
-    localStorage.setItem("GEMINI_API_KEY", key);
+  const handleSaveKey = (p: string, key: string) => {
+    if (p === "gemini") { setGeminiKey(key); localStorage.setItem("GEMINI_API_KEY", key); }
+    if (p === "openrouter") { setOpenrouterKey(key); localStorage.setItem("OPENROUTER_API_KEY", key); }
+    if (p === "openai") { setOpenaiKey(key); localStorage.setItem("OPENAI_API_KEY", key); }
+    if (p === "anthropic") { setAnthropicKey(key); localStorage.setItem("ANTHROPIC_API_KEY", key); }
+    if (p === "xai") { setXaiKey(key); localStorage.setItem("XAI_API_KEY", key); }
   };
 
-  const handleSaveOR = (key: string) => {
-    setOpenrouterKey(key);
-    localStorage.setItem("OPENROUTER_API_KEY", key);
-  };
-
-  const handleSetProvider = (p: "gemini" | "openrouter") => {
+  const handleSetProvider = (p: any) => {
     setProvider(p);
     localStorage.setItem("LLM_PROVIDER", p);
   };
 
-  const handleSetORModel = (m: string) => {
-    setOpenrouterModel(m);
-    localStorage.setItem("OPENROUTER_MODEL", m);
-  };
+  const currentKey = 
+    provider === "gemini" ? geminiKey : 
+    provider === "openrouter" ? openrouterKey : 
+    provider === "openai" ? openaiKey :
+    provider === "anthropic" ? anthropicKey :
+    xaiKey;
 
-  const currentKey = provider === "gemini" ? geminiKey : openrouterKey;
-  const isKeyActive = currentKey.length > 20;
+  const isKeyActive = currentKey.length > 10;
 
   const addFiles = (list: FileList | null, zone: "resume" | "csv") => {
     if (!list) return;
@@ -226,9 +234,12 @@ export default function LaunchpadPage() {
 
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             <div style={{ borderBottom: "2px solid var(--border)", paddingBottom: 10 }}>
-              <h2 style={{ fontSize: "0.9rem", fontWeight: 800, letterSpacing: "-0.01em", display: "flex", alignItems: "center", gap: 6 }}>
+              <h2 style={{ fontSize: "0.9rem", fontWeight: 800, letterSpacing: "-0.01em", display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
                 <Inbox size={16} /> Candidate Sources
               </h2>
+              <p style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: 8 }}>
+                You can use multiple sources simultaneously to gather candidates.
+              </p>
               <div className="card" style={{ marginBottom: 20 }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
                   <h3 className="card-title">LLM Configuration</h3>
@@ -252,7 +263,7 @@ export default function LaunchpadPage() {
                   gap: 8
                 }}>
                   <Loader size={14} className="spin" />
-                  <span>Note: High-capacity free models may take longer to respond. We never store your API keys.</span>
+                  <span>If the system key hits a rate limit, please use your own key. We never store your API keys.</span>
                 </div>
 
                 <div className="toggle-segment" style={{ marginBottom: 16 }}>
@@ -270,69 +281,75 @@ export default function LaunchpadPage() {
                   </button>
                 </div>
 
-                <div className="toggle-segment" style={{ marginBottom: 16 }}>
-                  <button
-                    onClick={() => handleSetProvider("gemini")}
-                    className={`toggle-segment-btn ${provider === "gemini" ? "active" : ""}`}
-                  >
-                    GEMINI
-                  </button>
-                  <button
-                    onClick={() => handleSetProvider("openrouter")}
-                    className={`toggle-segment-btn ${provider === "openrouter" ? "active" : ""}`}
-                  >
-                    OPENROUTER
-                  </button>
-                </div>
-
-
-                {provider === "openrouter" && (
-                  <div style={{ marginBottom: 16 }}>
-                    <label style={{ display: "block", fontSize: "10px", color: "var(--text-muted)", marginBottom: 6, fontWeight: 700 }}>FREE MODELS</label>
-                    <select
-                      value={openrouterModel}
-                      onChange={(e) => handleSetORModel(e.target.value)}
-                      style={{
-                        width: "100%", background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)",
-                        padding: "10px 12px", fontSize: "0.8rem", color: "var(--text)", cursor: "pointer"
-                      }}
-                    >
-                      <option value="google/gemma-3-27b-it:free">Gemma 3 27B (Fast / Accurate)</option>
-                      <option value="openai/gpt-oss-120b:free">GPT-OSS 120B (High Capacity)</option>
-                      <option value="mistralai/mistral-7b-instruct:free">Mistral 7B (Lightweight)</option>
-                    </select>
-                  </div>
-                )}
-
                 {useOwnKey && (
-                  <div style={{ position: "relative" }}>
-                    <input
-                      type={showKey ? "text" : "password"}
-                      placeholder={provider === "gemini" ? "Enter Gemini API Key..." : "Enter OpenRouter API Key..."}
-                      value={provider === "gemini" ? geminiKey : openrouterKey}
-                      onChange={(e) => provider === "gemini" ? handleSaveGemini(e.target.value) : handleSaveOR(e.target.value)}
-                      style={{
-                        width: "100%", background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)",
-                        padding: "12px 14px", fontSize: "0.85rem", color: "var(--text)", transition: "border 0.2s"
-                      }}
-                      onFocus={(e) => e.currentTarget.style.borderColor = "var(--blue)"}
-                      onBlur={(e) => e.currentTarget.style.borderColor = "var(--border)"}
-                    />
-                    <button
-                      onClick={() => setShowKey(!showKey)}
-                      style={{
-                        position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)",
-                        background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer"
-                      }}
-                    >
-                      {showKey ? <EyeOff size={16} /> : <Eye size={16} />}
-                    </button>
+                  <>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 4, marginBottom: 10 }}>
+                      {["gemini", "openai", "anthropic"].map(p => (
+                        <button key={p} 
+                          onClick={() => handleSetProvider(p)}
+                          className={`btn btn-sm ${provider === p ? "btn-primary" : "btn-outline"}`}
+                          style={{ fontSize: "9px", padding: "4px" }}>
+                          {p.toUpperCase()}
+                        </button>
+                      ))}
+                    </div>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4, marginBottom: 16 }}>
+                      {["openrouter", "xai"].map(p => (
+                        <button key={p} 
+                          onClick={() => handleSetProvider(p)}
+                          className={`btn btn-sm ${provider === p ? "btn-primary" : "btn-outline"}`}
+                          style={{ fontSize: "9px", padding: "4px" }}>
+                          {p.toUpperCase()}
+                        </button>
+                      ))}
+                    </div>
+
+                    <div style={{ position: "relative" }}>
+                      <input
+                        type={showKey ? "text" : "password"}
+                        placeholder={`Enter ${provider.toUpperCase()} API Key...`}
+                        value={
+                          provider === "gemini" ? geminiKey : 
+                          provider === "openai" ? openaiKey : 
+                          provider === "anthropic" ? anthropicKey : 
+                          provider === "xai" ? xaiKey : 
+                          openrouterKey
+                        }
+                        onChange={(e) => handleSaveKey(provider, e.target.value)}
+                        style={{
+                          width: "100%", background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)",
+                          padding: "12px 14px", fontSize: "0.85rem", color: "var(--text)", transition: "border 0.2s"
+                        }}
+                      />
+                      <button
+                        onClick={() => setShowKey(!showKey)}
+                        style={{
+                          position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)",
+                          background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer"
+                        }}
+                      >
+                        {showKey ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
+                  </>
+                )}
+                
+                {!useOwnKey && (
+                  <div style={{ 
+                    padding: "12px", background: "var(--bg-secondary)", 
+                    borderRadius: "var(--radius-sm)", border: "1px solid var(--border)",
+                    fontSize: "0.85rem", fontWeight: 600, textAlign: "center", color: "var(--blue)"
+                  }}>
+                    GEMINI 2.5 FLASH (ACTIVE)
                   </div>
                 )}
+
                 <p style={{ marginTop: 12, fontSize: "0.75rem", color: "var(--text-muted)", lineHeight: 1.5 }}>
-                  {provider === "gemini"
-                    ? "Standard high-speed analysis via Google Cloud."
-                    : "Access free models like DeepSeek or Llama 3 via OpenRouter."}
+                  {provider === "gemini" ? "High-speed analysis via Google Gemini 2.5 Flash." : 
+                   provider === "openai" ? "Universal intelligence via OpenAI GPT-5.4 Mini." :
+                   provider === "anthropic" ? "Nuanced reasoning via Claude 4.6 Opus." :
+                   provider === "xai" ? "Real-time insights via xAI Grok-1." :
+                   "Access 100+ models via OpenRouter."}
                 </p>
               </div>
             </div>

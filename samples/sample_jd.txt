@@ -1,0 +1,17 @@
+Senior Full-Stack Engineer
+
+We are a high-growth FinTech startup building the next generation of payment infrastructure. We are looking for a Senior Full-Stack Engineer to join our core team.
+
+Requirements:
+- 5+ years of experience with React and Node.js
+- Strong experience with PostgreSQL and database design
+- Experience building and maintaining APIs (REST/GraphQL)
+- Familiarity with AWS (EC2, S3, RDS)
+- Experience with payment integrations (Stripe, Plaid) is a big plus
+- Strong communication skills and ability to work in a remote team
+
+Benefits:
+- Competitive salary ($160k - $220k)
+- Equity package
+- Remote-first culture
+- Health, dental, and vision insurance

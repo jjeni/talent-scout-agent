@@ -26,6 +26,12 @@ async def generate_content(
         return await _generate_gemini(prompt, model_name, api_key, system_instruction, response_mime_type, temperature)
     elif provider == "openrouter":
         return await _generate_openrouter(prompt, model_name, api_key, system_instruction, response_mime_type, temperature)
+    elif provider == "openai":
+        return await _generate_openai(prompt, model_name, api_key, system_instruction, response_mime_type, temperature)
+    elif provider == "anthropic":
+        return await _generate_anthropic(prompt, model_name, api_key, system_instruction, response_mime_type, temperature)
+    elif provider == "xai":
+        return await _generate_xai(prompt, model_name, api_key, system_instruction, response_mime_type, temperature)
     else:
         raise ValueError(f"Unsupported provider: {provider}")
 
@@ -131,3 +137,67 @@ async def _generate_openrouter(prompt, model_name, api_key, system, mime, temp):
                 await asyncio.sleep(2.0)
                 continue
             raise e
+
+
+async def _generate_openai(prompt, model_name, api_key, system, mime, temp):
+    effective_key = api_key or os.environ.get("OPENAI_API_KEY")
+    if not effective_key:
+        raise ValueError("No OpenAI API Key provided.")
+    
+    model = model_name or "gpt-5.4-mini"
+    messages = []
+    if system: messages.append({"role": "system", "content": system})
+    messages.append({"role": "user", "content": prompt})
+
+    headers = {"Authorization": f"Bearer {effective_key}", "Content-Type": "application/json"}
+    payload = {"model": model, "messages": messages, "temperature": temp}
+    if mime == "application/json": payload["response_format"] = {"type": "json_object"}
+
+    async with httpx.AsyncClient(timeout=60.0) as client:
+        resp = await client.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload)
+        resp.raise_for_status()
+        return resp.json()["choices"][0]["message"]["content"]
+
+
+async def _generate_anthropic(prompt, model_name, api_key, system, mime, temp):
+    effective_key = api_key or os.environ.get("ANTHROPIC_API_KEY")
+    if not effective_key:
+        raise ValueError("No Anthropic API Key provided.")
+    
+    model = model_name or "claude-opus-4-6"
+    headers = {
+        "x-api-key": effective_key,
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json"
+    }
+    payload = {
+        "model": model,
+        "max_tokens": 4096,
+        "messages": [{"role": "user", "content": prompt}],
+        "temperature": temp
+    }
+    if system: payload["system"] = system
+
+    async with httpx.AsyncClient(timeout=60.0) as client:
+        resp = await client.post("https://api.anthropic.com/v1/messages", headers=headers, json=payload)
+        resp.raise_for_status()
+        return resp.json()["content"][0]["text"]
+
+
+async def _generate_xai(prompt, model_name, api_key, system, mime, temp):
+    effective_key = api_key or os.environ.get("XAI_API_KEY")
+    if not effective_key:
+        raise ValueError("No xAI API Key provided.")
+    
+    model = model_name or "grok-1"
+    messages = []
+    if system: messages.append({"role": "system", "content": system})
+    messages.append({"role": "user", "content": prompt})
+
+    headers = {"Authorization": f"Bearer {effective_key}", "Content-Type": "application/json"}
+    payload = {"model": model, "messages": messages, "temperature": temp}
+
+    async with httpx.AsyncClient(timeout=60.0) as client:
+        resp = await client.post("https://api.x.ai/v1/chat/completions", headers=headers, json=payload)
+        resp.raise_for_status()
+        return resp.json()["choices"][0]["message"]["content"]

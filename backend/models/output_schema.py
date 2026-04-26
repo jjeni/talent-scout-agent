@@ -4,6 +4,7 @@ Output schemas for scored candidates, shortlist entries, and final ranked output
 from typing import Optional
 from pydantic import BaseModel
 from .candidate_schema import UnifiedCandidateProfile
+from .jd_schema import JDSchema
 
 
 class MatchBreakdown(BaseModel):
@@ -91,3 +92,5 @@ class PipelineStatus(BaseModel):
     current_candidate: Optional[str] = None
     message: str
     error: Optional[str] = None
+    last_turn: Optional[ConversationTurn] = None
+    parsed_jd: Optional[JDSchema] = None

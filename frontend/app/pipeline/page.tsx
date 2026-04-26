@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { subscribePipelineStatus as subscribeToProgress } from "@/lib/api";
-import { FileText, Inbox, Target, MessageSquare, Trophy, Check, X, Loader, Settings, PartyPopper, AlertTriangle } from "lucide-react";
+import { FileText, Inbox, Target, MessageSquare, Trophy, Check, X, Loader, Settings, PartyPopper, AlertTriangle, Bot, User } from "lucide-react";
 
 const STAGES = [
   { key: "parsing_jd", icon: FileText, label: "Parse JD" },
@@ -25,8 +25,10 @@ function PipelineInner() {
   const [progress, setProgress] = useState(0);
   const [message, setMessage]   = useState("Initializing pipeline...");
   const [candidate, setCand]    = useState("");
+  const [currentTurn, setTurn]  = useState<any>(null);
   const [done, setDone]         = useState(false);
   const [errMsg, setErr]        = useState("");
+  const [parsedJd, setParsedJd]   = useState<any>(null);
   const [logs, setLogs]         = useState<LogEntry[]>([]);
   const [elapsed, setElapsed]   = useState(0);
   const [startTime]             = useState(Date.now());
@@ -46,6 +48,9 @@ function PipelineInner() {
         setProgress(data.progress || 0);
         setMessage(data.message || "");
         setCand(data.current_candidate || "");
+        setTurn(data.last_turn || null);
+        if (data.parsed_jd) setParsedJd(data.parsed_jd);
+        
         const ts = new Date().toLocaleTimeString("en-US", { hour12: false });
         const kind: LogEntry["kind"] = data.stage === "error" ? "warn" : "info";
         setLogs(prev => [...prev, { ts, pct: data.progress || 0, msg: data.message || "", kind }]);
@@ -82,6 +87,21 @@ function PipelineInner() {
 
   const fmt = (s: number) =>
     `${String(Math.floor(s / 60)).padStart(2,"0")}:${String(s % 60).padStart(2,"0")}`;
+
+  if (!jobId) {
+    return (
+      <div className="page" style={{ textAlign: "center", padding: "100px 20px" }}>
+        <div style={{ marginBottom: 20, color: "var(--text-muted)" }}>
+          <AlertTriangle size={48} style={{ margin: "0 auto", marginBottom: 16 }} />
+          <h2 style={{ color: "var(--text-primary)" }}>No Active Pipeline</h2>
+          <p>Please launch a new session from the Launchpad.</p>
+        </div>
+        <button className="btn btn-primary" onClick={() => router.push("/")}>
+          Return to Launchpad
+        </button>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -136,6 +156,44 @@ function PipelineInner() {
           </div>
         </div>
 
+        {/* Parsed JD Card */}
+        {parsedJd && (
+          <div className="card fade-in-up" style={{ marginBottom: 16, padding: "20px" }}>
+            <div className="card-title">PARSED JOB DESCRIPTION</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: 12 }}>
+              <div>
+                <div style={{ fontSize: "10px", color: "var(--text-muted)", marginBottom: 4 }}>ROLE TITLE</div>
+                <div style={{ fontWeight: 700 }}>{parsedJd.role_title}</div>
+              </div>
+              <div>
+                <div style={{ fontSize: "10px", color: "var(--text-muted)", marginBottom: 4 }}>SENIORITY</div>
+                <div style={{ fontWeight: 700 }}>{parsedJd.seniority || "Not specified"}</div>
+              </div>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: 12 }}>
+              <div>
+                <div style={{ fontSize: "10px", color: "var(--text-muted)", marginBottom: 4 }}>LOCATION</div>
+                <div className="flex items-center gap-sm">
+                   <div className="chip chip-dim" style={{ fontSize: "10px" }}>{parsedJd.location?.type || "Remote"}</div>
+                   <span style={{ fontWeight: 600, fontSize: "12px" }}>{parsedJd.location?.city || "Worldwide"}</span>
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: "10px", color: "var(--text-muted)", marginBottom: 4 }}>EXPERIENCE</div>
+                <div style={{ fontWeight: 700, fontSize: "13px" }}>{parsedJd.experience?.min_years}+ years</div>
+              </div>
+            </div>
+            <div>
+              <div style={{ fontSize: "10px", color: "var(--text-muted)", marginBottom: 8 }}>CORE SKILLS</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+                {parsedJd.required_skills?.map((s: any, idx: number) => (
+                  <div key={idx} className="chip chip-blue" style={{ fontSize: "10px" }}>{s.skill}</div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Current candidate */}
         {candidate && !done && !errMsg && (
           <div className="card fade-in-up" style={{
@@ -152,6 +210,73 @@ function PipelineInner() {
                   ANALYZING PROFILE
                 </div>
                 <div style={{ fontWeight: 700, color: "var(--blue)", fontSize: "0.95rem" }}>{candidate}</div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Chat Simulation */}
+        {stage === "conversing" && currentTurn && (
+          <div className="card fade-in-up" style={{
+            marginBottom: 16,
+            padding: "20px",
+            background: "var(--surface-high)",
+            border: "1px solid var(--blue-mid)",
+            boxShadow: "0 8px 30px rgba(0,0,0,0.12)",
+            borderRadius: "16px",
+            position: "relative",
+            overflow: "hidden"
+          }}>
+            <div style={{ 
+              position: "absolute", top: 0, right: 0, padding: "4px 12px", 
+              background: "var(--blue)", color: "white", fontSize: "9px", 
+              fontWeight: 800, fontFamily: "'JetBrains Mono', monospace", 
+              borderBottomLeftRadius: "12px" 
+            }}>
+              LIVE SIMULATION
+            </div>
+            
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20, borderBottom: "1px solid var(--border)", paddingBottom: 10 }}>
+              <div style={{ fontSize: "0.9rem", fontWeight: 700, color: "var(--text-primary)" }}>
+                Engaging: {candidate}
+              </div>
+              <div style={{ fontSize: "11px", color: "var(--blue)", fontFamily: "'JetBrains Mono', monospace", fontWeight: 700 }}>
+                TURN {currentTurn.turn} OF 3
+              </div>
+            </div>
+            
+            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              {/* Agent Bubble */}
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", maxWidth: "85%" }}>
+                 <div style={{ fontSize: "10px", color: "var(--text-muted)", marginBottom: 6, display: "flex", alignItems: "center", gap: 6, fontWeight: 600 }}>
+                   <div style={{ width: 20, height: 20, borderRadius: "50%", background: "var(--blue-light)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--blue)" }}>
+                     <Bot size={12}/>
+                   </div>
+                   AI RECRUITER
+                 </div>
+                 <div className="bubble-agent" style={{ fontSize: "0.9rem", lineHeight: 1.5, padding: "12px 16px" }}>
+                   {currentTurn.agent}
+                 </div>
+              </div>
+
+              {/* Candidate Bubble */}
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", alignSelf: "flex-end", maxWidth: "85%" }}>
+                 <div style={{ fontSize: "10px", color: "var(--text-muted)", marginBottom: 6, display: "flex", alignItems: "center", gap: 6, fontWeight: 600 }}>
+                   {candidate.toUpperCase()}
+                   <div style={{ width: 20, height: 20, borderRadius: "50%", background: "var(--surface-mid)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-secondary)" }}>
+                     <User size={12}/>
+                   </div>
+                 </div>
+                 <div className="bubble-candidate" style={{ fontSize: "0.9rem", lineHeight: 1.5, padding: "12px 16px" }}>
+                   {currentTurn.candidate}
+                 </div>
+              </div>
+            </div>
+            
+            <div style={{ marginTop: 20, textAlign: "center" }}>
+              <div style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: "11px", color: "var(--text-muted)", background: "var(--surface-mid)", padding: "4px 12px", borderRadius: "20px" }}>
+                <span className="blink" style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--blue)" }} />
+                AI is assessing sentiment and interest level...
               </div>
             </div>
           </div>

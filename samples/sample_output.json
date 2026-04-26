@@ -1,0 +1,74 @@
+{
+  "job_id": "sample-job-123",
+  "role_title": "Senior Full-Stack Engineer",
+  "total_evaluated": 50,
+  "shortlisted_count": 3,
+  "avg_match_score": 88.5,
+  "avg_interest_score": 82.0,
+  "avg_combined_score": 85.9,
+  "processing_time_seconds": 45.2,
+  "ranked_candidates": [
+    {
+      "rank": 1,
+      "candidate_id": "cand_001",
+      "candidate_name": "Priya Nair",
+      "match_score": 91.0,
+      "interest_score": 87.5,
+      "combined_score": 89.6,
+      "top_match_reasons": [
+        "6y React/Node experience matches requirement",
+        "Direct experience with AWS and PostgreSQL",
+        "Previous FinTech background identified"
+      ],
+      "strengths": [
+        "Strong technical alignment with stack",
+        "Excellent communication in simulation",
+        "Remote-ready with US timezone overlap"
+      ],
+      "gaps": [],
+      "interest_summary": "Highly enthusiastic about the role; specifically mentioned interest in building payment infrastructure.",
+      "recruiter_note": "Top-tier candidate with perfect technical fit and high engagement.",
+      "source_type": "csv",
+      "data_completeness": 1.0,
+      "key_signals": ["Stated interest in FinTech", "Available within 2 weeks"],
+      "red_flags": []
+    },
+    {
+      "rank": 2,
+      "candidate_id": "cand_002",
+      "candidate_name": "James Okafor",
+      "match_score": 85.5,
+      "interest_score": 92.0,
+      "combined_score": 88.1,
+      "top_match_reasons": [
+        "7y experience exceeds minimum",
+        "Stripe API expertise mentioned",
+        "Strong system design skills"
+      ],
+      "strengths": [
+        "Deep payment integration knowledge",
+        "Very high engagement depth in chat"
+      ],
+      "gaps": [
+        "Slightly overqualified for standard senior role"
+      ],
+      "interest_summary": "Exceptional interest level; asked deep technical questions about the roadmap.",
+      "recruiter_note": "Strong lead potential; highly motivated by the product vision.",
+      "source_type": "linkedin",
+      "data_completeness": 0.9,
+      "key_signals": ["Asked about scaling challenges", "Proactive follow-up signal"],
+      "red_flags": []
+    }
+  ],
+  "excluded_candidates": [
+    {
+      "candidate": "Tom Bradley",
+      "id": "cand_024",
+      "reasons": ["Insufficient experience: 1.0y < 3.0y (min requirement)"]
+    }
+  ],
+  "weights": {
+    "match": 0.6,
+    "interest": 0.4
+  }
+}

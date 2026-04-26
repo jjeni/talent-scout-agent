@@ -4,6 +4,7 @@ import os
 
 from dotenv import load_dotenv
 
+from typing import Optional, Callable
 from models.jd_schema import JDSchema
 from models.candidate_schema import UnifiedCandidateProfile
 from models.output_schema import ConversationTranscript, ConversationTurn
@@ -110,7 +111,14 @@ def _detect_exit(candidate_reply: str) -> tuple[bool, str]:
         if signal in reply_lower: return True, "positive_close"
     return False, ""
 
-async def run_conversation(candidate: UnifiedCandidateProfile, jd: JDSchema, api_key: str = None, provider: str = "gemini", model: str = None) -> ConversationTranscript:
+async def run_conversation(
+    candidate: UnifiedCandidateProfile, 
+    jd: JDSchema, 
+    api_key: str = None, 
+    provider: str = "gemini", 
+    model: str = None,
+    turn_callback: Optional[Callable] = None
+) -> ConversationTranscript:
     """Simulates a full exchange using a stateless approach for multiple provider support."""
     async with global_convo_semaphore:
         agent_sys = _build_agent_system_prompt(candidate, jd)
@@ -120,7 +128,7 @@ async def run_conversation(candidate: UnifiedCandidateProfile, jd: JDSchema, api
         exit_reason = "max_turns"
         
         # 1. Recruiter Opening
-        await asyncio.sleep(2.0)
+        await asyncio.sleep(1.0)
         agent_msg = await generate_content(
             "Start the conversation with a personalized outreach message. Be warm and brief.",
             provider=provider, model_name=model or MODEL_FLASH, api_key=api_key,
@@ -137,8 +145,19 @@ async def run_conversation(candidate: UnifiedCandidateProfile, jd: JDSchema, api
                 system_instruction=cand_sys, temperature=0.8
             )
             
-            turns.append(ConversationTurn(turn=turn_num + 1, agent=agent_msg, candidate=cand_msg))
+            turn = ConversationTurn(turn=turn_num + 1, agent=agent_msg, candidate=cand_msg)
+            turns.append(turn)
             
+            if turn_callback:
+                try:
+                    # If it's a coroutine, await it
+                    if asyncio.iscoroutinefunction(turn_callback):
+                        await turn_callback(turn)
+                    else:
+                        turn_callback(turn)
+                except Exception as e:
+                    logger.warning(f"Turn callback failed: {e}")
+
             should_exit, reason = _detect_exit(cand_msg)
             if should_exit:
                 exit_reason = reason

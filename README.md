@@ -2,43 +2,71 @@
 
 > **Catalyst Hackathon 2026** · [Demo Video](#) · [Deployed App](#)
 
-An end-to-end AI pipeline that **parses job descriptions, scores candidates, conducts simulated multi-turn outreach, and delivers explainable ranked shortlists** — powered by Google Gemini 2.0 Flash.
+An end-to-end AI pipeline that **parses job descriptions, scores candidates, conducts simulated multi-turn outreach, and delivers explainable ranked shortlists** — powered by Google Gemini, OpenAI, and Anthropic.
 
 ---
 
-## 🚀 Quick Start (< 5 minutes)
+## ✨ Key Features
+
+*   **Multi-Provider LLM Support**: Use **Gemini 2.5 Flash**, **GPT-5.4 Mini**, or **Claude 4.6 Opus** with your own API keys.
+*   **Live Chat Simulation**: Watch the AI Recruiter and Candidates interact in real-time with a beautiful chat UI.
+*   **Real-time Activity Feed**: A terminal-style log tracks every stage of the pipeline with millisecond precision.
+*   **Instant JD Verification**: View the structured data (skills, seniority, location) extracted by the AI immediately after parsing.
+*   **Multi-Source Discovery**: Ingest candidates from CSV, JSON, PDF Resumes, GitHub, and LinkedIn URLs.
+
+---
+
+## 🚀 Local Setup Guide
 
 ### Prerequisites
-- Python 3.10+
-- Node.js 18+
-- Google Gemini API key → [Get one free](https://aistudio.google.com/)
+- **Python 3.10+**
+- **Node.js 18+** (with npm)
+- An API Key from one of: [Google AI Studio](https://aistudio.google.com/), [OpenAI](https://platform.openai.com/), or [Anthropic](https://console.anthropic.com/).
 
-### 1. Clone & Configure
+### 1. Clone the Repository
 ```bash
-git clone https://github.com/your-username/talent-scout.git
-cd "talent-scout"
+git clone https://github.com/jjeni/talent-scout-agent.git
+cd talent-scout-agent
+```
 
-# Copy and fill in your API key
+### 2. Configure Environment Variables
+Copy the example environment file and fill in your keys:
+```bash
 cp backend/.env.example backend/.env
-# Edit backend/.env — set GEMINI_API_KEY=your_key_here
 ```
+*Note: You can also enter these keys directly in the web UI for testing.*
 
-### 2. Install Backend
+### 3. Install Backend Dependencies
 ```bash
-pip3 install --user -r backend/requirements.txt
+cd backend
+python -m venv venv
+# Windows:
+.\venv\Scripts\activate
+# Mac/Linux:
+source venv/bin/activate
+
+pip install -r requirements.txt
+cd ..
 ```
 
-### 3. Install Frontend
+### 4. Install Frontend Dependencies
 ```bash
-cd frontend && npm install && cd ..
+cd frontend
+npm install
+cd ..
 ```
 
-### 4. Run Everything
+### 5. Run the Application
+You can run both servers using the provided script:
 ```bash
-bash start.sh
+# Windows (PowerShell)
+.\start.sh
 ```
+Or manually:
+*   **Backend**: `cd backend && python -m uvicorn main:app --reload` (Runs on port 8000)
+*   **Frontend**: `cd frontend && npm run dev` (Runs on port 3000)
 
-Open **http://localhost:3000** — paste a JD and click Launch Pipeline 🎉
+Open **http://localhost:3000** to begin scouting! 🎉
 
 ---
 
@@ -49,66 +77,32 @@ JD Text Input
      │
      ▼
 ┌─────────────────┐
-│  Stage 1        │  Gemini 2.0 Flash → structured JSON
-│  JD Parser      │  (role, skills+weights, experience, location, salary)
+│  Stage 1        │  JD Parser (Gemini/GPT/Claude)
+│  JD Parser      │  ──▶ [Instant Verification UI]
 └────────┬────────┘
          │
          ▼
 ┌─────────────────┐
-│  Stage 2a       │  Auto-detects: CSV · JSON · PDF · DOCX · GitHub · LinkedIn
-│  Candidate      │  → Unified Profile Schema (50+ synthetic candidates built-in)
-│  Ingestor       │
+│  Stage 2        │  Ingestion & Matching
+│  Ingestion &    │  Embeddings + Rules-based Hybrid Scoring
+│  Matching       │  ──▶ [Live Activity Feed]
 └────────┬────────┘
          │
          ▼
 ┌─────────────────┐
-│  Stage 2b       │  Hard filters → Hybrid match scoring
-│  Matcher        │  Skills: text-embedding-004 cosine + exact match (40%)
-│                 │  Experience (25%) + Location (20%) + Education (15%)
-└────────┬────────┘
-         │ Top-N candidates
-         ▼
-┌─────────────────┐
-│  Stage 3        │  Gemini dual-model: Agent persona + Candidate persona
-│  Conversation   │  3–5 turns per candidate, personalised per profile
-│  Agent          │  → Full transcript stored
+│  Stage 3        │  Dual-Persona Conversation Simulation
+│  Live Chat      │  ──▶ [Real-time Chat UI via SSE]
 └────────┬────────┘
          │
          ▼
 ┌─────────────────┐
-│  Stage 4        │  Combined Score = 60% Match + 40% Interest
-│  Ranker         │  AI-generated recruiter note per candidate
+│  Stage 4        │  Final Ranking & Shortlisting
+│  Ranker         │  Combined Match + Interest Scores
 └────────┬────────┘
          │
          ▼
-  Ranked Shortlist (JSON + UI Dashboard)
+   Ranked Shortlist (JSON + UI Dashboard)
 ```
-
----
-
-## 📊 Scoring Model
-
-### Match Score (0–100)
-| Dimension | Weight | Method |
-|---|---|---|
-| Skills Match | 40% | `text-embedding-004` cosine + exact normalization |
-| Experience Fit | 25% | Years vs JD requirement (with overqualified penalty) |
-| Location Fit | 20% | Remote/timezone/city compatibility logic |
-| Education Fit | 15% | Degree rank hierarchy + field relevance |
-
-### Interest Score (0–100)
-| Dimension | Weight | Source |
-|---|---|---|
-| Stated Interest | 35% | Explicit positive/negative statements |
-| Engagement Depth | 25% | Question depth, reply richness |
-| Availability | 20% | Notice period, start date |
-| Sentiment | 20% | Overall emotional tone |
-
-### Combined Score
-```
-Combined = 0.60 × Match + 0.40 × Interest
-```
-*(Weights configurable from the UI)*
 
 ---
 
@@ -116,71 +110,17 @@ Combined = 0.60 × Match + 0.40 × Interest
 
 | Layer | Technology |
 |---|---|
-| **LLM (Primary)** | Google Gemini 2.0 Flash |
-| **Embeddings** | Google `text-embedding-004` |
-| **LLM (Fallback)** | OpenAI GPT-4o |
-| **Backend** | FastAPI + Python 3.10 |
+| **LLMs** | Gemini 2.5 Flash, GPT-5.4 Mini, Claude 4.6 Opus |
+| **Embeddings** | Google `gemini-embedding-001` |
+| **Backend** | FastAPI (Python) |
 | **Frontend** | Next.js 14 (App Router) |
-| **Candidate Input** | CSV · JSON · PDF · DOCX · GitHub API · LinkedIn scraping |
-| **Real-time** | Server-Sent Events (SSE) |
-| **Deployment** | Vercel (frontend) + Render (backend) |
+| **Styling** | Vanilla CSS (Modern Premium Aesthetic) |
+| **Icons** | Lucide React |
 
 ---
 
-## 🎯 Sample Input / Output
+## 📄 License
 
-**Input JD:** Senior Full-Stack Engineer — FinTech Startup (Series B), Remote US, $160k–$200k, React + Node.js + AWS
+Distributed under the MIT License. See `LICENSE` for more information.
 
-**Sample Output:**
-| Rank | Candidate | Match | Interest | Combined | Top Reason |
-|---|---|---|---|---|---|
-| #1 | Priya Nair | 91 | 87 | 89.8 | 6y React/Node, AWS certified, remote-ready |
-| #2 | James Okafor | 85 | 92 | 87.8 | FinTech background, Stripe exp, high enthusiasm |
-| #3 | Sofia Hernandez | 88 | 74 | 82.4 | Strong full-stack, PostgreSQL expert |
-
----
-
-## 📁 Project Structure
-
-```
-talent-scout/
-├── backend/
-│   ├── main.py                    # FastAPI app + all routes
-│   ├── models/                    # Pydantic schemas (JD, Candidate, Output)
-│   ├── modules/
-│   │   ├── jd_parser.py           # Stage 1
-│   │   ├── candidate_ingestor.py  # Stage 2a (multi-format)
-│   │   ├── matcher.py             # Stage 2b (hybrid scoring)
-│   │   ├── conversation_agent.py  # Stage 3 (dual-model LLM)
-│   │   ├── interest_scorer.py     # Stage 3b (transcript analysis)
-│   │   └── ranker.py              # Stage 4
-│   └── data/candidates.py         # 50 synthetic candidates
-├── frontend/
-│   ├── app/
-│   │   ├── page.tsx               # JD input + settings
-│   │   ├── pipeline/page.tsx      # Live progress (SSE)
-│   │   └── shortlist/page.tsx     # Ranked shortlist dashboard
-│   └── lib/api.ts                 # TypeScript API client
-└── start.sh                       # One-command startup
-```
-
----
-
-## ✅ Checklist
-
-- [x] Deployed prototype (see link above)
-- [x] Public source code repo with comprehensive README
-- [x] Architecture diagram (see above)
-- [x] 2+ sample JD inputs with outputs (see `/backend/data/`)
-- [x] Match Score with per-dimension sub-scores
-- [x] Interest Score with per-dimension sub-scores from conversation
-- [x] Final ranked shortlist combining both scores
-- [x] Structured Match Insights (Strengths/Gaps explainability)
-- [x] Recruiter Action Dashboard (Schedule/Reject directly from UI)
-- [x] Enhanced Screening (Career goals & Notice period captures)
-- [x] Multi-source Discovery (CSV, LinkedIn, GitHub, Resumes)
-- [x] Fully Mobile Responsive recruitment dashboard
-
----
-
-*Built for Catalyst Hackathon 2026 · Powered by Google Gemini 2.0 Flash*
+*Built for Catalyst Hackathon 2026*
