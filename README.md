@@ -374,7 +374,7 @@ See [`samples/`](./samples/) for complete input/output examples.
 
 ---
 
-## ✅ Assignment Checklist
+## ✅ Checklist
 
 - [x] **Working prototype** — fully functional local setup with clear instructions
 - [x] **Source code in public repo** — [github.com/jjeni/talent-scout-agent](https://github.com/jjeni/talent-scout-agent)
@@ -389,10 +389,3 @@ See [`samples/`](./samples/) for complete input/output examples.
 
 ---
 
-## 📄 License
-
-Distributed under the MIT License. See `LICENSE` for more information.
-
----
-
-*Built for Catalyst Hackathon 2026 · Powered by Gemini · GPT · Claude · Grok*
