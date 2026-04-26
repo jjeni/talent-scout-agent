@@ -1,6 +1,6 @@
 # 🤖 TalentScout AI — AI-Powered Talent Scouting & Engagement Agent
 
-> **Catalyst Hackathon 2026** · [Demo Video](#) · [Deployed App](#)
+> **Catalyst Hackathon 2026** · [Demo Video](https://drive.google.com/file/d/19GmMk1dXNOn1_zX5B_Wwp-Fk63PgSysQ/view?usp=drivesdk) · [Deployed App](https://hr-scout-agent.vercel.app/)
 
 An end-to-end AI pipeline that **parses job descriptions, discovers matching candidates, engages them conversationally to assess genuine interest, and outputs a ranked shortlist** scored on two dimensions: **Match Score** and **Interest Score** — powered by Google Gemini, OpenAI GPT, Anthropic Claude, and xAI Grok.
 
